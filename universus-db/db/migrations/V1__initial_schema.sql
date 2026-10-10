@@ -75,6 +75,7 @@ CREATE TABLE card_symbols (
     card_id  integer NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
     symbol   text    NOT NULL REFERENCES symbols(code),
     attuned  boolean NOT NULL DEFAULT false,
+    quantity smallint NOT NULL DEFAULT 1 CHECK (quantity > 0),   -- times the symbol is printed on the card (A Moment of Rest)
     PRIMARY KEY (card_id, symbol, attuned)
 );
 CREATE INDEX card_symbols_symbol_idx ON card_symbols (symbol);
@@ -93,21 +94,28 @@ CREATE TABLE keywords (
 );
 
 CREATE TABLE card_keywords (
-    id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    card_id     integer  NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
-    keyword_id  smallint NOT NULL REFERENCES keywords(id),
-    value       smallint,                        -- NULL for keywords without a rating
-    detail      citext,                          -- optional extra text, e.g. Combo(Kick), or the trait name for Char. Trait
+    id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    card_id      integer  NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    keyword_id   smallint NOT NULL REFERENCES keywords(id),
+    value        smallint,                       -- NULL for keywords without a rating
+    detail       citext,                         -- optional extra text, e.g. Combo(Kick), or 'X' for a variable rating,
+                                                 -- or the trait name for Char. Trait
+    requirement  citext,                         -- who or what the keyword applies under: a character name or trait,
+                                                 -- or a game state such as Deadlock or Desperation
     CONSTRAINT card_keywords_detail_not_blank
-        CHECK (detail IS NULL OR length(btrim(detail::text)) > 0)
+        CHECK (detail IS NULL OR length(btrim(detail::text)) > 0),
+    CONSTRAINT card_keywords_requirement_not_blank
+        CHECK (requirement IS NULL OR length(btrim(requirement::text)) > 0)
 );
--- A card may list the same keyword several times with different details
--- (two Char. Trait rows, or Combo(Kick) and Combo(Punch)) but never an exact duplicate.
--- This index also serves lookups by card_id.
+-- A card may list the same keyword several times with different requirements or details
+-- (two Char. Trait rows, Combo(Kick) and Combo(Punch), or the same keyword for two characters)
+-- but never an exact duplicate. This index also serves lookups by card_id.
 CREATE UNIQUE INDEX card_keywords_unique_idx
-    ON card_keywords (card_id, keyword_id, (coalesce(detail::text, '')));
-CREATE INDEX card_keywords_kw_idx        ON card_keywords (keyword_id, value);
-CREATE INDEX card_keywords_kw_detail_idx ON card_keywords (keyword_id, detail);
+    ON card_keywords (card_id, keyword_id,
+                      (coalesce(requirement::text, '')), (coalesce(detail::text, '')));
+CREATE INDEX card_keywords_kw_idx             ON card_keywords (keyword_id, value);
+CREATE INDEX card_keywords_kw_detail_idx      ON card_keywords (keyword_id, detail);
+CREATE INDEX card_keywords_kw_requirement_idx ON card_keywords (keyword_id, requirement);
 
 -- ---------------------------------------------------------------
 -- Users

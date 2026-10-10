@@ -1,15 +1,14 @@
 """Parsing helpers for scraped Universus card fields. No database needed."""
 import re
+from datetime import date
 from functools import lru_cache
 
-_KEYWORD_RE = re.compile(
-    r"""^\s*
-        (?P<name>[^:()]+?)                  # Powerful, Combo, E Rank, ...
-        \s*(?::\s*(?P<value>-?\d+))?        # optional rating:  ': 3'
-        \s*(?:\((?P<detail>.*)\))?          # optional detail:  '(Kick)'
-        \s*$""",
-    re.VERBOSE,
-)
+# '(Kick)' at the end of a token is its detail; '...: 3' or '...: X' at the end is its rating.
+_PAREN_RE = re.compile(r"^(?P<body>[^()]*?)\s*(?:\((?P<detail>.*)\))?$")
+_ERRATA_RE = re.compile(r"\s*\[\s*errata\s*\]", re.IGNORECASE)   # 'Throw[ERRATA]' is just Throw
+# a rating glued to the keyword: 'Breaker1', 'Desperation4', 'BruteBreaker1'
+_GLUED_VALUE_RE = re.compile(r"^(?P<base>.*\D)\s*(?P<num>\d{1,3})$")
+_VALUE_RE = re.compile(r"^(?P<head>.+?)\s*:\s*(?P<value>-?\d+|X)$")
 
 
 def split_top_level(s, sep=" - "):
@@ -33,20 +32,34 @@ def split_top_level(s, sep=" - "):
 
 
 def parse_keywords(s):
-    """'Fury - Kick - Powerful: 3' -> [('Fury', None, None), ('Kick', None, None),
-    ('Powerful', 3, None)]. Items are (name, value, detail). Raises on junk."""
+    """Split a keyword line into raw tokens (no keyword list needed).
+    Items are (head, value, detail): value is an int, 'X' (a variable rating) or None.
+    'Fury - Kick - Powerful: 3' -> [('Fury', None, None), ('Kick', None, None), ('Powerful', 3, None)]
+    'Chun Li: Multiple: 2'      -> [('Chun Li: Multiple', 2, None)]
+    'AlgolCombo(Kick)'          -> [('AlgolCombo', None, 'Kick')]
+    The head may still carry a qualifier ('BrutePowerful'); resolve_keywords splits it off.
+    Raises ValueError on junk."""
     if not s:
         return []
     out = []
     for token in split_top_level(s):
-        m = _KEYWORD_RE.match(token)
+        token = _ERRATA_RE.sub("", token).strip()
+        if not token:
+            continue
+        m = _PAREN_RE.match(token)
         if not m:
             raise ValueError(f"Cannot parse keyword token: {token!r} (in {s!r})")
-        value = int(m["value"]) if m["value"] is not None else None
+        body = m["body"].strip()
         detail = (m["detail"] or "").strip() or None
-        if 'Deadlock' in m["name"]:
-            detail = 'Deadlock'
-        out.append((m["name"].replace('Deadlock', '').strip(), value, detail))
+        v = _VALUE_RE.match(body)
+        if v:
+            head = v["head"].strip()
+            value = "X" if v["value"] == "X" else int(v["value"])
+        else:
+            head, value = body, None
+        if not head or "::" in head or head.startswith(":") or head.endswith(":"):
+            raise ValueError(f"Cannot parse keyword token: {token!r} (in {s!r})")
+        out.append((head, value, detail))
     return out
 
 
@@ -65,6 +78,17 @@ def parse_symbols(s):
         else:
             out.append((token, False))
     return out
+
+
+def count_symbols(s):
+    """Like parse_symbols, but repeated symbols are counted:
+    'infinity;infinity;infinity' -> [('infinity', False, 3)]
+    'at_earth;at_earth;earth'    -> [('earth', True, 2), ('earth', False, 1)]
+    Order of first appearance is kept."""
+    counts = {}
+    for symbol, attuned in parse_symbols(s):
+        counts[(symbol, attuned)] = counts.get((symbol, attuned), 0) + 1
+    return [(symbol, attuned, n) for (symbol, attuned), n in counts.items()]
 
 
 def parse_formats(s):
@@ -93,38 +117,109 @@ def load_keywords(path):
     return known
 
 
+def _split_qualified(head, known):
+    """'BrutePowerful' -> ('Brute', 'Powerful'); 'Ranged-Stun' -> ('Ranged', 'Stun').
+    Looks for a known keyword (exact capitalisation) at the end of `head` with something in
+    front of it. Returns (qualifier, canonical keyword name) or None."""
+    best = None
+    for canon, _ in known.values():
+        if canon == CHAR_TRAIT or len(head) <= len(canon) or not head.endswith(canon):
+            continue
+        prefix = head[: -len(canon)].rstrip(" -:")
+        if prefix and (best is None or len(canon) > len(best[1])):
+            best = (prefix, canon)
+    return best
+
+
 def resolve_keywords(parsed, known):
     """Turn parse_keywords() output into (rows, problems).
 
-    rows are (canonical_keyword_name, value, detail). A token that is not in the
-    keyword list is treated as a character trait: ('Char. Trait', None, token).
-    Anything suspicious (rating on an unrated keyword, unknown token with a
-    rating/detail, exact duplicates) is reported in `problems` instead."""
+    rows are (keyword_name, value, detail, requirement):
+      - A keyword may carry a requirement: who or what it applies under (a character name or
+        trait, or a game state such as Deadlock or Desperation). It is written in front of the
+        keyword, joined ('BrutePowerful'), spaced ('Charlie Only'), hyphenated ('Ranged-Stun')
+        or with a colon ('Chun Li: Multiple: 2').
+      - A rating of X (variable) is stored as value None with detail 'X'.
+      - A token that matches no keyword and carries no rating/detail is a character trait:
+        ('Char. Trait', None, token, None).
+    Anything suspicious (rating on an unrated keyword, unknown keyword with a rating/detail,
+    exact duplicates) is reported in `problems` instead."""
     rows, problems, seen = [], [], set()
     trait = known.get(CHAR_TRAIT.lower())
-    for name, value, detail in parsed:
+    for head, value, detail in parsed:
+        requirement = None
+        name = head
+        if value is None and ":" not in head:
+            g = _GLUED_VALUE_RE.match(head)
+            if g:
+                base = g["base"].strip()
+                if known.get(base.lower()) or _split_qualified(base, known):
+                    name, value = base, int(g["num"])
+        if ":" in name:
+            requirement, name = (p.strip() for p in name.rsplit(":", 1))
+            if not requirement or not name:
+                problems.append(f"Cannot read keyword {head!r}")
+                continue
+
         entry = known.get(name.lower())
-        if entry:
+        if entry is None and requirement is None:
+            split = _split_qualified(name, known)
+            if split:
+                requirement, canon = split
+                entry = known[canon.lower()]
+
+        if entry is not None:
             canon, has_value = entry
             if value is not None and not has_value:
                 problems.append(f"{canon!r} has a rating ({value}) but has_value is false in keywords.csv")
                 continue
-            row = (canon, value, detail)
+            if value == "X":
+                if detail is not None:
+                    problems.append(f"{canon!r} has both a rating of X and the detail {detail!r}")
+                    continue
+                value, detail = None, "X"
+            row = (canon, value, detail, requirement)
         else:
-            if value is not None or detail is not None:
-                problems.append(f"Unknown keyword {name!r} with a rating or detail; add it to keywords.csv")
+            if value is not None or detail is not None or requirement is not None:
+                problems.append(f"Unknown keyword {head!r} with a rating, detail or requirement; add it to keywords.csv")
                 continue
             if trait is None:
-                problems.append(f"{name!r} looks like a character trait but {CHAR_TRAIT!r} is missing from keywords.csv")
+                problems.append(f"{head!r} looks like a character trait but {CHAR_TRAIT!r} is missing from keywords.csv")
                 continue
-            row = (trait[0], None, name)
-        key = (row[0].lower(), (row[2] or "").lower())
+            row = (trait[0], None, head, None)
+
+        key = (row[0].lower(), (row[3] or "").lower(), (row[2] or "").lower())
         if key in seen:
-            problems.append(f"Duplicate keyword entry {row[0]!r} ({row[2]!r})")
+            problems.append(f"Duplicate keyword entry {row[0]!r} (requirement {row[3]!r}, detail {row[2]!r})")
             continue
         seen.add(key)
         rows.append(row)
     return rows, problems
+
+
+def normalize_date(s):
+    """'2010-12-00' -> '2010-12-01'; '2010-00-00' -> '2010-01-01'; '0000-00-00' or junk -> None."""
+    if not s:
+        return None
+    m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", str(s).strip())
+    if not m:
+        return None
+    year, month, day = (int(g) for g in m.groups())
+    if year == 0:
+        return None
+    try:
+        return date(year, month or 1, day or 1).isoformat()
+    except ValueError:
+        return None
+
+
+ZONES = ("high", "mid", "low")
+
+
+def normalize_zone(v):
+    """'Mid' -> 'mid'. Anything that is not high/mid/low (None, '', an icon path) -> None."""
+    z = str(v).strip().lower() if v is not None else ""
+    return z if z in ZONES else None
 
 
 # ---- ability types in rules text ---------------------------------------------
@@ -143,27 +238,32 @@ def _header_end(line):
 
 
 @lru_cache(maxsize=8)
-def _ability_regex(types):
-    alt = "|".join(re.escape(t) for t in sorted(types, key=len, reverse=True))
+def _ability_regex(tokens):
+    alt = "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True))
     return re.compile(
-        r"^(?:(?P<qualifier>[A-Z][\w'.\u2019-]*(?:\s+[A-Z][\w'.\u2019-]*)*?)\s+)?"
+        r"^(?:\{[^}]*\}\s*)*"                      # leading symbols such as {7X}
+        r"(?:(?P<qualifier>[A-Z][\w'.\u2019-]*(?:\s+[A-Z][\w'.\u2019-]*)*?)\s+)?"
         r"(?P<type>" + alt + r")\b(?P<rest>.*)$"
     )
 
 
-def extract_ability_types(rules_text, ability_types):
+def extract_ability_types(rules_text, ability_tokens):
     """Which ability types does this rules text contain?
 
+    `ability_tokens` maps every way a type is written to its lowercase name, e.g.
+    {'Enhance': 'enhance', 'E': 'enhance', 'Response': 'response', 'R': 'response', ...}
+    (see load_ability_types). The scrape often abbreviates a type to its first letter.
+
     A line is an ability when the text before its first ':' (outside [brackets]) looks like
-    '[Words ]<Type>[ costs or limits]'. Words in front of the type ('Monster Blitz',
-    'First Form') are ignored here: they are requirements, and requirements never give the
-    card keywords or traits. Searching for them is left to full-text search.
+    '[Words ]<Type>[ costs or limits]', e.g. 'Enhance Mill 1', 'E Commit 1 foundation',
+    'Monster Blitz Lose 2 health', 'Combo E'. Words in front of the type are ignored here:
+    they are requirements, and requirements never give the card keywords or traits.
 
     Returns (types, unrecognized):
       types        - sorted unique lowercase type names, e.g. ['blitz', 'response']
       unrecognized - short headers that look like abilities but start with no known type
                      (e.g. 'Mystery Move'), so you can decide whether to add a type."""
-    regex = _ability_regex(tuple(ability_types))
+    regex = _ability_regex(tuple(ability_tokens))
     found, unrecognized = set(), []
     for line in re.split(r"\n+", rules_text or ""):
         line = line.strip()
@@ -173,7 +273,7 @@ def extract_ability_types(rules_text, ability_types):
         header = line[:end].strip()
         m = regex.match(header)
         if m:
-            found.add(m["type"].lower())
+            found.add(ability_tokens[m["type"]])
         elif header and len(header) <= 50:
             unrecognized.append(header)
     return sorted(found), unrecognized
@@ -192,4 +292,18 @@ def load_names(path):
 
 
 def load_ability_types(path):
-    return load_names(path)
+    """Read db/data/ability_types.csv (columns: name, abbreviation) ->
+    {'Blitz': 'blitz', 'B': 'blitz', 'Enhance': 'enhance', 'E': 'enhance', ...}"""
+    import csv
+    with open(path, newline="", encoding="utf-8") as f:
+        lines = [ln for ln in f if ln.strip() and not ln.lstrip().startswith("#")]
+    tokens = {}
+    for row in csv.DictReader(lines):
+        name = (row.get("name") or "").strip()
+        if not name:
+            continue
+        tokens[name] = name.lower()
+        abbreviation = (row.get("abbreviation") or "").strip()
+        if abbreviation:
+            tokens[abbreviation] = name.lower()
+    return tokens

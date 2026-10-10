@@ -1,11 +1,13 @@
 # Ability types that start a line of rules text, e.g. "Blitz Drive 2: ..." or
 # "Monster Blitz Lose 2 health: ...". The importer stores each card's types in
 # cards.ability_types (lowercase). A word in front of the type is ignored.
+# The scrape often abbreviates a type to one letter ("E Commit 1 foundation:" is an Enhance
+# ability), so each type lists its abbreviation. B for Blitz is an assumption: please check.
 # After editing this list, re-run the import with --force.
 # If the import summary lists an "unrecognised ability header" you want to filter
-# by, add its type name here.
-name
-Blitz
-Enhance
-Form
-Response
+# by, add its type here.
+name,abbreviation
+Blitz,B
+Enhance,E
+Form,F
+Response,R
