@@ -1,0 +1,5 @@
+.env
+*.log
+*/cards_images
+*/backup
+**/.venv

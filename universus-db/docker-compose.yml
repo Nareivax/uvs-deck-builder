@@ -1,0 +1,36 @@
+services:
+  db:
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+    image: universus-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"        # dev only; remove for deployed environments
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # healthcheck is defined in docker/postgres.Dockerfile
+
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/migrate.Dockerfile
+    image: universus-migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      FLYWAY_USER: ${POSTGRES_USER}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # Dev convenience: overrides the migrations baked into the image,
+      # so new files are picked up without rebuilding.
+      - ./db/migrations:/flyway/sql:ro
+
+volumes:
+  pgdata:

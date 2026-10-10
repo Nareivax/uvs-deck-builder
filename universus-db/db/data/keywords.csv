@@ -1,0 +1,50 @@
+# The keyword list. The importer loads this on every run (adds new keywords,
+# updates has_value). Add a line here when a new set introduces a keyword.
+# has_value = true means the keyword takes a rating, e.g. Powerful: 3.
+# Character traits (Brawler, Hunter, ...) are NOT listed individually: they are
+# stored as the keyword 'Char. Trait' with the trait name as its detail.
+name,has_value
+Ally,false
+Armor,false
+Breaker,true
+Char. Trait,false
+Charge,false
+Combo,false
+Deflect,true
+Desperation,true
+Diplomacy,false
+EX,true
+Echo,false
+Elusive,false
+Flash,false
+Frenzy,false
+Fury,false
+Gauge,true
+Item,false
+Kick,false
+Multiple,true
+Only,false
+Pizza,false
+Powerful,true
+Psycho,false
+Punch,false
+Ranged,false
+Reversal,false
+Safe,false
+Scheme,false
+Shadow,false
+Shift,false
+Slam,false
+Spell,false
+Stance,false
+Stun,true
+Taunt,false
+Tech,false
+Tension,false
+Terrain,false
+Throw,false
+Titan,false
+Unique,false
+Vestige,false
+Weapon,false
+XP,false

@@ -1,0 +1,11 @@
+# Ability types that start a line of rules text, e.g. "Blitz Drive 2: ..." or
+# "Monster Blitz Lose 2 health: ...". The importer stores each card's types in
+# cards.ability_types (lowercase). A word in front of the type is ignored.
+# After editing this list, re-run the import with --force.
+# If the import summary lists an "unrecognised ability header" you want to filter
+# by, add its type name here.
+name
+Blitz
+Enhance
+Form
+Response

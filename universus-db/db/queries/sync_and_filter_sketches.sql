@@ -1,0 +1,127 @@
+-- ===============================================================
+-- SYNC QUERIES (sketches; $n are bound parameters)
+-- ===============================================================
+
+-- PULL: decks changed since the client's cursor, including deleted ones.
+-- $1 = user id, $2 = last sync_seq the client saw (0 on first sync)
+-- The client stores the highest sync_seq it receives as its new cursor.
+--
+-- SELECT d.id, d.format_id, d.name, d.description, d.visibility,
+--        d.deleted_at, d.revision, d.sync_seq,
+--        COALESCE(
+--          jsonb_agg(jsonb_build_object(
+--              'card_id', dc.card_id, 'zone', dc.zone, 'quantity', dc.quantity))
+--          FILTER (WHERE dc.card_id IS NOT NULL), '[]') AS cards
+-- FROM decks d
+-- LEFT JOIN deck_cards dc ON dc.deck_id = d.id
+-- WHERE d.user_id = $1 AND d.sync_seq > $2
+-- GROUP BY d.id
+-- ORDER BY d.sync_seq
+-- LIMIT 100;
+-- (If 100 rows come back, the client pulls again from the new cursor.)
+
+-- PUSH (one deck, inside a transaction):
+-- $1 = deck uuid (client generated), $2 = user id, $3 = base revision the
+-- client edited from (0 for a brand-new deck), plus the deck fields.
+--
+-- BEGIN;
+--   INSERT INTO decks (id, user_id, format_id, name, description, visibility, deleted_at)
+--   VALUES ($1, $2, $4, $5, $6, $7, $8)
+--   ON CONFLICT (id) DO UPDATE
+--     SET format_id = EXCLUDED.format_id, name = EXCLUDED.name,
+--         description = EXCLUDED.description, visibility = EXCLUDED.visibility,
+--         deleted_at = EXCLUDED.deleted_at
+--     WHERE decks.user_id = $2 AND decks.revision = $3
+--   RETURNING revision, sync_seq;
+--   -- No row returned => conflict (server copy changed) or not the owner.
+--   -- Return HTTP 409 with the server's current copy so the client can decide.
+--
+--   -- Only if the row above was returned:
+--   DELETE FROM deck_cards WHERE deck_id = $1;
+--   INSERT INTO deck_cards (deck_id, card_id, zone, quantity)
+--   SELECT $1, card_id, zone::deck_zone, quantity
+--   FROM unnest($9::int[], $10::text[], $11::int[]) AS t(card_id, zone, quantity);
+-- COMMIT;
+
+-- CARD CATALOG PULL: cards changed since the phone's last check.
+-- $1 = timestamp of the client's last catalog sync
+-- SELECT * FROM cards WHERE updated_at > $1;
+-- (Card deletions are rare; ship a full-snapshot version number
+--  and let the app re-download when it changes.)
+
+-- KEYWORD FILTER EXAMPLE: Throw AND Powerful >= 2
+-- SELECT c.* FROM cards c
+-- WHERE EXISTS (SELECT 1 FROM card_keywords ck JOIN keywords k ON k.id = ck.keyword_id
+--               WHERE ck.card_id = c.id AND k.name = 'Throw')
+--   AND EXISTS (SELECT 1 FROM card_keywords ck JOIN keywords k ON k.id = ck.keyword_id
+--               WHERE ck.card_id = c.id AND k.name = 'Powerful' AND ck.value >= 2);
+
+-- KEYWORD DETAIL FILTER (card_keywords.detail): Combo (kick)
+-- API syntax idea:  ?keyword=combo:detail:kick            exact, case-insensitive
+--                   ?keyword=combo:detail_contains:diff   substring match
+-- SELECT c.* FROM cards c
+-- WHERE EXISTS (SELECT 1 FROM card_keywords ck JOIN keywords k ON k.id = ck.keyword_id
+--               WHERE ck.card_id = c.id AND k.name = 'Combo' AND ck.detail = 'kick');
+-- Substring version: ... AND ck.detail ILIKE '%' || $1 || '%'  (escape % and _ in user input)
+
+-- COPIES OF EACH CARD IN A DECK, COUNTED BY NAME ACROSS PRINTINGS ($1 = deck id)
+-- (cards are per printing now, so a reprint should share the same copy limit)
+-- SELECT c.name, sum(dc.quantity) AS copies, f.max_copies
+-- FROM deck_cards dc
+-- JOIN decks d   ON d.id = dc.deck_id
+-- JOIN formats f ON f.id = d.format_id
+-- JOIN cards c   ON c.id = dc.card_id
+-- WHERE dc.deck_id = $1 AND dc.zone IN ('main', 'sideboard')
+-- GROUP BY c.name, f.max_copies
+-- HAVING f.max_copies IS NOT NULL AND sum(dc.quantity) > f.max_copies;
+
+-- CARDS LEGAL IN A FORMAT, WITH TEXT SEARCH
+-- SELECT c.* FROM cards c
+-- JOIN card_formats cf ON cf.card_id = c.id
+-- JOIN formats f ON f.id = cf.format_id
+-- WHERE f.name = 'Standard'
+--   AND c.search @@ websearch_to_tsquery('english', 'draw cards');
+
+-- CARDS WITH A GIVEN SYMBOL, ATTUNED OR NOT
+-- SELECT DISTINCT c.* FROM cards c
+-- JOIN card_symbols s ON s.card_id = c.id WHERE s.symbol = 'earth';
+
+-- CHARACTER TRAITS: stored as keyword 'Char. Trait' with the trait name in detail
+-- Characters that are Brawlers:
+-- SELECT c.* FROM cards c
+-- JOIN card_keywords ck ON ck.card_id = c.id
+-- JOIN keywords k ON k.id = ck.keyword_id
+-- WHERE k.name = 'Char. Trait' AND ck.detail = 'Brawler' AND c.card_type = 'character';
+--
+-- Any card (character or not) carrying a trait: drop the card_type condition.
+--
+-- Trait list for a filter dropdown:
+-- SELECT DISTINCT ck.detail FROM card_keywords ck
+-- JOIN keywords k ON k.id = ck.keyword_id
+-- WHERE k.name = 'Char. Trait' ORDER BY 1;
+--
+-- Cards with Titan (a regular keyword, on characters and other cards):
+-- SELECT c.* FROM cards c JOIN card_keywords ck ON ck.card_id = c.id
+-- JOIN keywords k ON k.id = ck.keyword_id WHERE k.name = 'Titan';
+
+-- ABILITY TYPES: cards.ability_types holds lowercase types derived from the rules text.
+-- Keyword and trait filters above use card_keywords only; words in rules text never give
+-- a card a keyword or trait.
+--
+-- Cards with a Blitz ability:
+-- SELECT * FROM cards WHERE ability_types @> ARRAY['blitz'];
+--
+-- Blitz AND Response:
+-- SELECT * FROM cards WHERE ability_types @> ARRAY['blitz', 'response'];
+--
+-- Blitz OR Response:
+-- SELECT * FROM cards WHERE ability_types && ARRAY['blitz', 'response'];
+--
+-- Blitz that mentions Monster in front of it (phrase search over name + rules text):
+-- SELECT * FROM cards
+-- WHERE ability_types @> ARRAY['blitz']
+--   AND search @@ phraseto_tsquery('english', 'Monster Blitz');
+-- (websearch_to_tsquery('english', '"Monster Blitz"') accepts quoted phrases from a search box.)
+--
+-- Any text search over rules text and names:
+-- SELECT * FROM cards WHERE search @@ websearch_to_tsquery('english', 'draw cards');
