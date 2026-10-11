@@ -2,7 +2,9 @@
 import tempfile, os
 from cardparse import (parse_keywords, parse_symbols, count_symbols, parse_formats, load_keywords,
                        resolve_keywords, extract_ability_types, load_ability_types,
-                       normalize_date, normalize_zone)
+                       normalize_date, normalize_zone,
+                       load_aliases, canonical_name, canonical_requirement,
+                       find_spelling_variants)
 
 def check(got, want):
     assert got == want, f"\n got:  {got}\n want: {want}"
@@ -134,6 +136,35 @@ check(resolve("Combo(Kick) - Combo(kick)")[0], [("Combo", None, "Kick", None)])
 check(resolve("AlgolCombo(Kick) - PaulCombo(Kick)")[1], [])
 no_trait = {k: v for k, v in known.items() if k != "char. trait"}
 assert resolve_keywords(parse_keywords("Brawler"), no_trait)[1]
+
+# aliases (spelling variants) and slash lists
+from collections import Counter
+aliases = load_aliases(os.path.join(os.path.dirname(__file__), "..", "db", "data", "aliases.csv"))
+check(aliases["chun li"], "Chun-Li")
+check(canonical_name("chun  li", aliases), "Chun-Li")          # case and spacing are ignored
+check(canonical_name("Ryu", aliases), "Ryu")
+check(canonical_requirement("Benimaru/Goro/Kyo", aliases), "Benimaru/Goro/Kyo")
+check(canonical_requirement("Chun Li/Cammy", aliases), "Chun-Li/Cammy")
+check(canonical_requirement(" M Bison / Balrog ", aliases), "M. Bison/Balrog")
+
+def resolve_a(s):
+    applied = Counter()
+    rows, problems = resolve_keywords(parse_keywords(s), known, aliases, applied)
+    return rows, problems, applied
+
+rows, problems, applied = resolve_a("Chun LiMultiple: 2 - Chun-LiMultiple: 2")
+check(rows, [("Multiple", 2, None, "Chun-Li")])           # both spellings become one entry...
+assert problems, "...so the second is reported as a duplicate"
+check(resolve_a("T.HawkDesperation: 5")[0], [("Desperation", 5, None, "T. Hawk")])
+check(resolve_a("Benimaru/Goro/KyoBreaker: 2")[0], [("Breaker", 2, None, "Benimaru/Goro/Kyo")])
+check(resolve_a("Bell's Hells")[0], [("Char. Trait", None, "Bells Hells", None)])
+check(resolve_a("Bells Hells")[0], [("Char. Trait", None, "Bells Hells", None)])
+check(resolve_a("Chun LiMultiple: 2")[2], Counter({"Chun Li -> Chun-Li": 1}))
+# without aliases nothing is rewritten
+check(resolve("Chun LiMultiple: 2")[0], [("Multiple", 2, None, "Chun Li")])
+
+check(find_spelling_variants(["Chun Li", "Chun-Li", "Ryu", "Benimaru/Goro/Kyo", "Kyo", "T.Hawk/Guile", "T. Hawk"]),
+      [["Chun Li", "Chun-Li"], ["T. Hawk", "T.Hawk"]])
 
 # ability types in rules text, using real card texts
 here = os.path.dirname(__file__)

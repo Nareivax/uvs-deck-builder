@@ -87,13 +87,14 @@ export async function buildServer() {
         [id],
       ),
       pool.query(
-        `SELECT k.name::text AS name, ck.value, ck.detail::text AS detail
+        `SELECT k.name::text AS name, ck.value, ck.detail::text AS detail,
+                ck.requirement::text AS requirement
          FROM card_keywords ck JOIN keywords k ON k.id = ck.keyword_id
          WHERE ck.card_id = $1 ORDER BY ck.id`,
         [id],
       ),
       pool.query(
-        `SELECT symbol, attuned FROM card_symbols WHERE card_id = $1 ORDER BY symbol, attuned`,
+        `SELECT symbol, attuned, quantity FROM card_symbols WHERE card_id = $1 ORDER BY symbol, attuned`,
         [id],
       ),
       pool.query(

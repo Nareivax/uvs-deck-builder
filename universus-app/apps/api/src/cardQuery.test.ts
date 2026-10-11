@@ -57,6 +57,18 @@ test('keyword filters: rating and detail', () => {
   assert.deepEqual(values, ['powerful', 2, 'combo', 'Kick', 'combo', '%k\\_%', 50, 0]);
 });
 
+test('keyword filter: requirement matches any alternative in a slash list', () => {
+  const { text, values } = buildCardSearch({
+    ...base,
+    keywords: [{ name: 'breaker', requirement: 'Kyo' }],
+  });
+  assert.ok(
+    text.includes("lower($2) = ANY(string_to_array(lower(ck.requirement::text), '/'))"),
+    text,
+  );
+  assert.deepEqual(values, ['breaker', 'Kyo', 50, 0]);
+});
+
 test('ability filters: all vs any', () => {
   const all = buildCardSearch({ ...base, abilities: ['blitz', 'response'] });
   assert.ok(all.text.includes('c.ability_types @> $1::text[]'));

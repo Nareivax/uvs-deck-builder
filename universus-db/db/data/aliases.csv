@@ -1,0 +1,12 @@
+# Spelling variants found in the scrape. The importer rewrites each variant to the canonical
+# spelling in keyword requirements (character names, traits) and in character traits, so a filter
+# for one spelling finds cards written with the other. Matching ignores case.
+# The canonical spellings are best guesses at the official ones: swap a pair if one is wrong.
+# After editing, re-run the import with --force.
+alias,canonical
+Chun Li,Chun-Li
+M Bison,M. Bison
+R Mika,R. Mika
+T.Hawk,T. Hawk
+Bell's Hells,Bells Hells
+Asataroth, Astaroth

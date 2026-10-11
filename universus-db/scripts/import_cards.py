@@ -7,7 +7,7 @@ Usage:
     python3 scripts/import_cards.py cards.jsonl --force     # reprocess even unchanged cards
     python3 scripts/import_cards.py cards.jsonl --skip-bad  # import good cards, list the bad ones
 
-Use --force after editing db/data/keywords.csv or db/data/ability_types.csv.
+Use --force after editing db/data/keywords.csv, ability_types.csv or aliases.csv.
 
 Connection settings come from the environment or the .env file in the repo
 root (POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB, optional POSTGRES_HOST
@@ -24,6 +24,9 @@ in front of it ("BrutePowerful: 3", "DeadlockStun: 2", "Chun Li: Multiple: 2"); 
 card_keywords.requirement. A token that is not a keyword and has no rating or detail is a
 character trait: keyword 'Char. Trait' with the token as its detail. Words in the rules text
 never add keywords or traits to a card.
+Spelling variants of names (Chun Li / Chun-Li) are merged using db/data/aliases.csv. A requirement
+like Benimaru/Goro/Kyo means any of those characters satisfies it; it is stored as written
+(with canonical spellings) and filters split it on '/'.
 
 Ability types: each card's rules text is scanned for lines starting with a type from
 db/data/ability_types.csv. The types found go in cards.ability_types as lowercase text.
@@ -37,13 +40,14 @@ from pathlib import Path
 import psycopg
 from psycopg.types.json import Jsonb
 
-from cardparse import (CHAR_TRAIT, count_symbols, extract_ability_types, load_ability_types,
-                       load_keywords, normalize_date, normalize_zone, parse_formats,
+from cardparse import (CHAR_TRAIT, count_symbols, extract_ability_types, find_spelling_variants,
+                       load_ability_types, load_aliases, load_keywords, normalize_date, normalize_zone, parse_formats,
                        parse_keywords, resolve_keywords)
 
 ROOT = Path(__file__).resolve().parent.parent
 KEYWORDS_FILE = ROOT / "db" / "data" / "keywords.csv"
 ABILITY_TYPES_FILE = ROOT / "db" / "data" / "ability_types.csv"
+ALIASES_FILE = ROOT / "db" / "data" / "aliases.csv"
 
 CARD_COLUMNS = [
     "source_id", "set_id", "number", "name", "card_type", "rarity", "rules_text", "ability_types",
@@ -164,7 +168,8 @@ def import_card(cur, raw, ctx, stats):
 
     # Parse and validate first, so a bad card writes nothing
     try:
-        keywords, problems = resolve_keywords(parse_keywords(raw.get("keywords")), ctx["known"])
+        keywords, problems = resolve_keywords(parse_keywords(raw.get("keywords")), ctx["known"],
+                                            ctx["aliases"], stats["aliases_applied"])
     except ValueError as e:
         keywords, problems = [], [str(e)]
     if problems:
@@ -259,16 +264,18 @@ def main():
     cards = read_cards(args[0])
     known = load_keywords(KEYWORDS_FILE)
     ability_types = load_ability_types(ABILITY_TYPES_FILE)
+    aliases = load_aliases(ALIASES_FILE) if ALIASES_FILE.exists() else {}
     set_dates, adjusted_dates = compute_set_dates(cards)
 
     stats = {"inserted": 0, "updated": 0, "unchanged": 0, "problems": [], "failed": [],
              "traits": {}, "requirements": Counter(), "odd_zones": Counter(),
              "new_symbols": [], "new_formats": [],
-             "ability_counts": Counter(), "unrecognized": Counter()}
+             "ability_counts": Counter(), "unrecognized": Counter(),
+             "aliases_applied": Counter()}
     with connect() as conn:                      # commits on success, rolls back on error/exit
         with conn.cursor() as cur:
             ctx = {"known": known, "force": force, "sets": {}, "formats": {},
-                   "set_dates": set_dates, "ability_types": ability_types,
+                   "set_dates": set_dates, "ability_types": ability_types, "aliases": aliases,
                    "keyword_ids": sync_keywords(cur, known)}
             for raw in cards:
                 try:
@@ -317,6 +324,12 @@ def main():
     if stats["requirements"]:
         print("Keyword requirements found (character names, traits or game states): "
               + ", ".join(sorted(stats["requirements"])))
+    if stats["aliases_applied"]:
+        print("Aliases applied: " + ", ".join(f"{k} x{n}" for k, n in sorted(stats["aliases_applied"].items())))
+    variants = find_spelling_variants(list(stats["requirements"]) + list(stats["traits"]))
+    if variants:
+        print("Possible spelling variants not covered by db/data/aliases.csv: "
+              + "; ".join(" | ".join(v) for v in variants))
 
     if stats["ability_counts"]:
         by_type = ", ".join(f"{n} {t}" for t, n in sorted(stats["ability_counts"].items()))

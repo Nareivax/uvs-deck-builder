@@ -4,4 +4,5 @@
 */backup
 **/.venv
 issues.txt
-*/__pycache__
+**/__pycache__
+*.pyc

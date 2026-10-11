@@ -29,11 +29,14 @@ export interface CardKeywordInfo {
   name: string;
   value: number | null;
   detail: string | null;
+  /** Who or what the keyword applies under, e.g. "Brute", "Deadlock" or "Benimaru/Goro/Kyo". */
+  requirement: string | null;
 }
 
 export interface CardSymbolInfo {
   symbol: string;
   attuned: boolean;
+  quantity: number;
 }
 
 export interface CardDetail extends CardListItem {

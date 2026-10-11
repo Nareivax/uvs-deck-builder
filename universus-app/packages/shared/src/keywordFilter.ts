@@ -8,6 +8,8 @@ import { FilterError } from './errors.ts';
  *   powerful:gte:2         rating >= 2   (ops: eq, gt, gte, lt, lte)
  *   combo:detail:kick      detail text equals "kick" (case-insensitive)
  *   combo:detail_contains:ki   detail text contains "ki"
+ *   breaker:requirement:kyo   keyword applies under a requirement (character, trait or state);
+ *                         a list like "Benimaru/Goro/Kyo" matches any one of its names
  *   char. trait:detail:brawler   a character trait
  *
  * Repeat the parameter to require several keywords (AND). The same keyword may be
@@ -20,6 +22,8 @@ export interface KeywordFilter {
   name: string;
   value?: { op: NumberOp; n: number };
   detail?: { op: DetailOp; text: string };
+  /** One name; matches when it is any one of the alternatives in the card's requirement. */
+  requirement?: string;
 }
 
 const NUMBER_OPS: readonly string[] = ['eq', 'gt', 'gte', 'lt', 'lte'];
@@ -52,6 +56,13 @@ export function parseKeywordFilter(input: string): KeywordFilter {
     return { name, detail: { op: second === 'detail' ? 'eq' : 'contains', text } };
   }
 
+  if (second === 'requirement') {
+    const text = parts.slice(2).join(':').trim();
+    if (text === '') throw new FilterError(`Keyword filter "${input}" has an empty requirement`);
+    if (text.length > 100) throw new FilterError('Keyword requirement is too long');
+    return { name, requirement: text };
+  }
+
   if (NUMBER_OPS.includes(second)) {
     if (parts.length !== 3) {
       throw new FilterError(`Keyword filter "${input}" should look like name:${second}:number`);
@@ -64,6 +75,6 @@ export function parseKeywordFilter(input: string): KeywordFilter {
   }
 
   throw new FilterError(
-    `Keyword filter "${input}": unknown operator "${second}" (use eq, gt, gte, lt, lte, detail or detail_contains)`,
+    `Keyword filter "${input}": unknown operator "${second}" (use eq, gt, gte, lt, lte, detail, detail_contains or requirement)`,
   );
 }

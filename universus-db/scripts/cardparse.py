@@ -117,6 +117,54 @@ def load_keywords(path):
     return known
 
 
+def _alias_key(name):
+    return re.sub(r"\s+", " ", name.strip()).lower()
+
+
+def load_aliases(path):
+    """Read db/data/aliases.csv (columns: alias, canonical) -> {'chun li': 'Chun-Li', ...}."""
+    import csv
+    with open(path, newline="", encoding="utf-8") as f:
+        lines = [ln for ln in f if ln.strip() and not ln.lstrip().startswith("#")]
+    aliases = {}
+    for row in csv.DictReader(lines):
+        alias = (row.get("alias") or "").strip()
+        canonical = (row.get("canonical") or "").strip()
+        if alias and canonical:
+            aliases[_alias_key(alias)] = canonical
+    return aliases
+
+
+def canonical_name(name, aliases, applied=None):
+    """Rewrite one name to its canonical spelling. `applied` (a Counter) counts rewrites."""
+    name = name.strip()
+    canonical = (aliases or {}).get(_alias_key(name))
+    if canonical is None or canonical == name:
+        return name
+    if applied is not None:
+        applied[f"{name} -> {canonical}"] += 1
+    return canonical
+
+
+def canonical_requirement(requirement, aliases, applied=None):
+    """A requirement may list alternatives: 'Benimaru/Goro/Kyo' means any of them satisfies it.
+    Each alternative gets its canonical spelling; the result is joined with '/'."""
+    parts = [p.strip() for p in requirement.split("/") if p.strip()]
+    return "/".join(canonical_name(p, aliases, applied) for p in parts)
+
+
+def find_spelling_variants(names):
+    """Groups of names that differ only in case, spacing or punctuation, e.g.
+    ['Chun Li', 'Chun-Li']. Names may be '/'-separated lists. Returns a list of sorted lists."""
+    groups = {}
+    for entry in names:
+        for name in entry.split("/"):
+            name = name.strip()
+            if name:
+                groups.setdefault(re.sub(r"[^a-z0-9]", "", name.lower()), set()).add(name)
+    return [sorted(g) for g in groups.values() if len(g) > 1]
+
+
 def _split_qualified(head, known):
     """'BrutePowerful' -> ('Brute', 'Powerful'); 'Ranged-Stun' -> ('Ranged', 'Stun').
     Looks for a known keyword (exact capitalisation) at the end of `head` with something in
@@ -131,7 +179,7 @@ def _split_qualified(head, known):
     return best
 
 
-def resolve_keywords(parsed, known):
+def resolve_keywords(parsed, known, aliases=None, applied=None):
     """Turn parse_keywords() output into (rows, problems).
 
     rows are (keyword_name, value, detail, requirement):
@@ -142,6 +190,9 @@ def resolve_keywords(parsed, known):
       - A rating of X (variable) is stored as value None with detail 'X'.
       - A token that matches no keyword and carries no rating/detail is a character trait:
         ('Char. Trait', None, token, None).
+    A requirement may list alternatives ('Benimaru/Goro/Kyo': any of them will do). With
+    `aliases` (see load_aliases), spelling variants of names are rewritten to one canonical
+    spelling, in requirements and in trait names.
     Anything suspicious (rating on an unrated keyword, unknown keyword with a rating/detail,
     exact duplicates) is reported in `problems` instead."""
     rows, problems, seen = [], [], set()
@@ -168,6 +219,9 @@ def resolve_keywords(parsed, known):
                 requirement, canon = split
                 entry = known[canon.lower()]
 
+        if requirement:
+            requirement = canonical_requirement(requirement, aliases, applied)
+
         if entry is not None:
             canon, has_value = entry
             if value is not None and not has_value:
@@ -186,7 +240,7 @@ def resolve_keywords(parsed, known):
             if trait is None:
                 problems.append(f"{head!r} looks like a character trait but {CHAR_TRAIT!r} is missing from keywords.csv")
                 continue
-            row = (trait[0], None, head, None)
+            row = (trait[0], None, canonical_name(head, aliases, applied), None)
 
         key = (row[0].lower(), (row[3] or "").lower(), (row[2] or "").lower())
         if key in seen:

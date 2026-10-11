@@ -43,10 +43,14 @@ All read-only for now.
 | `type` | `type=attack&type=foundation` | card type(s), any of |
 | `set` | `set=sf62x` | set code(s), any of |
 | `format` | `format=Standard` | legal in this format |
-| `keyword` | `keyword=powerful:gte:2` | repeat for several (AND). Forms: `name`, `name:2`, `name:gte:2` (eq, gt, gte, lt, lte), `name:detail:kick`, `name:detail_contains:ki` |
+| `keyword` | `keyword=powerful:gte:2` | repeat for several (AND). Forms: `name`, `name:2`, `name:gte:2` (eq, gt, gte, lt, lte), `name:detail:kick`, `name:detail_contains:ki`, `name:requirement:kyo` |
 | `ability` | `ability=blitz&ability=response` | ability type(s); also `ability=blitz,response` |
 | `ability_match` | `ability_match=any` | `all` (default) or `any` for the ability list |
 | `page`, `page_size` | `page=2&page_size=30` | paging (page_size max 200) |
+
+A keyword's requirement (a character name, trait or game state such as Deadlock) is filtered with
+`keyword=breaker:requirement:kyo`. A requirement written as a list, like `Benimaru/Goro/Kyo`, matches a
+filter for any one of its names.
 
 Character traits are the keyword `Char. Trait` with the trait in `detail`:
 `keyword=char. trait:detail:brawler`. Keyword filters read only the card's keyword line; words in

@@ -35,6 +35,15 @@ test('detail filters', () => {
   assert.deepEqual(parseKeywordFilter('only:detail:a:b'), { name: 'only', detail: { op: 'eq', text: 'a:b' } });
 });
 
+test('requirement filters', () => {
+  assert.deepEqual(parseKeywordFilter('breaker:requirement:Kyo'), { name: 'breaker', requirement: 'Kyo' });
+  assert.deepEqual(parseKeywordFilter('multiple:requirement:Chun-Li'), {
+    name: 'multiple',
+    requirement: 'Chun-Li',
+  });
+  assert.throws(() => parseKeywordFilter('breaker:requirement:'), FilterError);
+});
+
 test('bad keyword filters', () => {
   for (const bad of ['', ':2', 'powerful:abc', 'powerful:gte', 'powerful:gte:x', 'powerful:foo:1',
     'powerful:gte:2:3', 'combo:detail:', 'powerful:99999']) {

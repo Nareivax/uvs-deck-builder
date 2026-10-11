@@ -72,6 +72,12 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
           : `ck.detail::text ILIKE ${add(`%${escapeLike(kf.detail.text)}%`)}`,
       );
     }
+    if (kf.requirement) {
+      // "Benimaru/Goro/Kyo" is a list of alternatives: a filter for any one of them matches.
+      parts.push(
+        `lower(${add(kf.requirement)}) = ANY(string_to_array(lower(ck.requirement::text), '/'))`,
+      );
+    }
     where.push(
       `EXISTS (SELECT 1 FROM card_keywords ck JOIN keywords k ON k.id = ck.keyword_id
                WHERE ${parts.join(' AND ')})`,
