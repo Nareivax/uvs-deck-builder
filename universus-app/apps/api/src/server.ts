@@ -1,6 +1,6 @@
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
-import { ABILITY_TYPES, FilterError } from '@universus/shared';
+import { ABILITY_TYPES, FilterError, STATS } from '@universus/shared';
 import type {
   CardDetail,
   CardListItem,
@@ -8,7 +8,7 @@ import type {
   KeywordInfo,
   MetaResponse,
 } from '@universus/shared';
-import { CARD_COLUMNS, buildCardSearch } from './cardQuery.ts';
+import { CARD_COLUMNS, STAT_COLUMNS, buildCardSearch } from './cardQuery.ts';
 import { config } from './config.ts';
 import { pool } from './db.ts';
 import { parseCardSearch } from './parseQuery.ts';
@@ -46,7 +46,7 @@ export async function buildServer() {
 
   // Everything the filter UI needs in one call
   app.get('/meta', async (): Promise<MetaResponse> => {
-    const [keywords, formats, sets, types] = await Promise.all([
+    const [keywords, formats, sets, types, ranges] = await Promise.all([
       pool.query(`SELECT id, name::text AS name, has_value AS "hasValue" FROM keywords ORDER BY name`),
       pool.query(`SELECT id, name FROM formats ORDER BY name`),
       pool.query(
@@ -54,6 +54,12 @@ export async function buildServer() {
          FROM sets ORDER BY release_date DESC NULLS LAST, name`,
       ),
       pool.query(`SELECT DISTINCT card_type FROM cards ORDER BY card_type`),
+      // lowest and highest value of every filterable stat, in one query
+      pool.query(
+        `SELECT ${STATS.map(
+          (st) => `min(${STAT_COLUMNS[st.key]}) AS "${st.key}_min", max(${STAT_COLUMNS[st.key]}) AS "${st.key}_max"`,
+        ).join(', ')} FROM cards`,
+      ),
     ]);
     return {
       keywords: keywords.rows as KeywordInfo[],
@@ -61,6 +67,12 @@ export async function buildServer() {
       sets: sets.rows,
       abilityTypes: [...ABILITY_TYPES],
       cardTypes: types.rows.map((r: { card_type: string }) => r.card_type),
+      stats: STATS.map((st) => ({
+        key: st.key,
+        label: st.label,
+        min: ranges.rows[0]?.[`${st.key}_min`] ?? null,
+        max: ranges.rows[0]?.[`${st.key}_max`] ?? null,
+      })),
     };
   });
 

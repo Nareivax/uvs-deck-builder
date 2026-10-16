@@ -26,9 +26,9 @@ export interface KeywordFilter {
   requirement?: string;
 }
 
-const NUMBER_OPS: readonly string[] = ['eq', 'gt', 'gte', 'lt', 'lte'];
+export const NUMBER_OPS: readonly string[] = ['eq', 'gt', 'gte', 'lt', 'lte'];
 
-function parseNumber(text: string, input: string): number {
+export function parseNumber(text: string, input: string): number {
   if (!/^-?\d+$/.test(text)) {
     throw new FilterError(`Keyword filter "${input}": "${text}" is not a whole number`);
   }

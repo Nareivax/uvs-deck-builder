@@ -1,4 +1,4 @@
-import type { KeywordFilter, NumberOp } from '@universus/shared';
+import type { KeywordFilter, NumberOp, StatFilter, StatKey } from '@universus/shared';
 
 export interface CardSearchParams {
   q?: string;
@@ -6,6 +6,7 @@ export interface CardSearchParams {
   sets: string[];
   format?: string;
   keywords: KeywordFilter[];
+  stats: StatFilter[];
   abilities: string[];
   abilityMatch: 'all' | 'any';
   page: number;
@@ -24,6 +25,17 @@ export const CARD_COLUMNS = `
   c.difficulty, c.control, c.block_modifier AS "blockModifier", c.block_zone AS "blockZone",
   c.attack_zone AS "attackZone", c.attack_speed AS "attackSpeed", c.attack_damage AS "attackDamage",
   c.hand_size AS "handSize", c.vitality, c.image_mini_url AS "imageMiniUrl"`;
+
+/** Which database column each filterable stat reads. Only these are ever put into the SQL. */
+export const STAT_COLUMNS: Record<StatKey, string> = {
+  difficulty: 'difficulty',
+  control: 'control',
+  block_modifier: 'block_modifier',
+  attack_speed: 'attack_speed',
+  attack_damage: 'attack_damage',
+  hand_size: 'hand_size',
+  vitality: 'vitality',
+};
 
 // Operators come from this fixed table, never from user text.
 const SQL_OPS: Record<NumberOp, string> = { eq: '=', gt: '>', gte: '>=', lt: '<', lte: '<=' };
@@ -82,6 +94,9 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
       `EXISTS (SELECT 1 FROM card_keywords ck JOIN keywords k ON k.id = ck.keyword_id
                WHERE ${parts.join(' AND ')})`,
     );
+  }
+  for (const sf of p.stats) {
+    where.push(`c.${STAT_COLUMNS[sf.stat]} ${SQL_OPS[sf.op]} ${add(sf.n)}`);
   }
   if (p.abilities.length > 0) {
     const op = p.abilityMatch === 'any' ? '&&' : '@>';

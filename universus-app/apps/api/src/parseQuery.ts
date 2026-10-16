@@ -1,4 +1,4 @@
-import { FilterError, parseAbilityTypes, parseKeywordFilter } from '@universus/shared';
+import { FilterError, parseAbilityTypes, parseKeywordFilter, parseStatFilter } from '@universus/shared';
 import type { CardSearchParams } from './cardQuery.ts';
 
 export type RawQuery = Record<string, string | string[] | undefined>;
@@ -30,6 +30,9 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
   const keywordParams = many(query.keyword).filter((s) => s.trim() !== '');
   if (keywordParams.length > 10) throw new FilterError('At most 10 keyword filters are allowed');
 
+  const statParams = many(query.stat).filter((s) => s.trim() !== '');
+  if (statParams.length > 20) throw new FilterError('At most 20 stat filters are allowed');
+
   const match = one(query.ability_match) ?? 'all';
   if (match !== 'all' && match !== 'any') throw new FilterError('ability_match must be "all" or "any"');
 
@@ -39,6 +42,7 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
     sets: many(query.set).map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 20),
     format: one(query.format),
     keywords: keywordParams.map(parseKeywordFilter),
+    stats: statParams.map(parseStatFilter),
     abilities: parseAbilityTypes(many(query.ability)),
     abilityMatch: match,
     page: intParam(query.page, 'page', 1, 1, 10000),

@@ -61,10 +61,19 @@ export interface KeywordInfo {
   hasValue: boolean;
 }
 
+export interface StatInfo {
+  key: string;
+  label: string;
+  /** Lowest and highest value in the card database (null if no card has the stat). */
+  min: number | null;
+  max: number | null;
+}
+
 export interface MetaResponse {
   keywords: KeywordInfo[];
   formats: { id: number; name: string }[];
   sets: { id: number; code: string; name: string; releaseDate: string | null }[];
   abilityTypes: string[];
   cardTypes: string[];
+  stats: StatInfo[];
 }

@@ -14,3 +14,7 @@ body { margin: 0; }
 .card .meta { margin: 0.15rem 0; font-size: 0.8rem; color: #555; }
 .card .rules { margin: 0.25rem 0 0; font-size: 0.85rem; white-space: pre-line; }
 .pager { display: flex; gap: 1rem; align-items: center; justify-content: center; margin: 1rem 0; }
+.filters .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.4rem 1rem; }
+.stat-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+.stat-row > span:first-child { width: 6.5rem; }
+.stat-row input { width: 5.5rem; }

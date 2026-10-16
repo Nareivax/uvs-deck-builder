@@ -44,9 +44,12 @@ All read-only for now.
 | `set` | `set=sf62x` | set code(s), any of |
 | `format` | `format=Standard` | legal in this format |
 | `keyword` | `keyword=powerful:gte:2` | repeat for several (AND). Forms: `name`, `name:2`, `name:gte:2` (eq, gt, gte, lt, lte), `name:detail:kick`, `name:detail_contains:ki`, `name:requirement:kyo` |
+| `stat` | `stat=difficulty:lte:3` | numeric stats: difficulty, control, block_modifier, attack_speed, attack_damage, hand_size, vitality. Forms: `stat:3`, `stat:gte:3` (eq, gt, gte, lt, lte); repeat for several (AND) |
 | `ability` | `ability=blitz&ability=response` | ability type(s); also `ability=blitz,response` |
 | `ability_match` | `ability_match=any` | `all` (default) or `any` for the ability list |
 | `page`, `page_size` | `page=2&page_size=30` | paging (page_size max 200) |
+
+For Only, the name in front of it is the requirement: `keyword=only:requirement:kyo` finds "Kyo Only" cards.
 
 A keyword's requirement (a character name, trait or game state such as Deadlock) is filtered with
 `keyword=breaker:requirement:kyo`. A requirement written as a list, like `Benimaru/Goro/Kyo`, matches a
@@ -55,6 +58,10 @@ filter for any one of its names.
 Character traits are the keyword `Char. Trait` with the trait in `detail`:
 `keyword=char. trait:detail:brawler`. Keyword filters read only the card's keyword line; words in
 rules text never count as keywords or traits. Bad input returns HTTP 400 with `{ "error": "..." }`.
+
+## Changing filters and /meta
+See `docs/changing-filters-and-meta.md` for how a filter travels from the database to the UI, a checklist
+for adding one, and how to change the shape of `/meta` or swap a control.
 
 ## What has and hasn't been checked
 - Tested here: the filter parsers, the deck text parser/writer and the SQL builder (as text, not

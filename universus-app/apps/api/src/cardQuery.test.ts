@@ -9,6 +9,7 @@ const base: CardSearchParams = {
   types: [],
   sets: [],
   keywords: [],
+  stats: [],
   abilities: [],
   abilityMatch: 'all',
   page: 1,
@@ -69,6 +70,28 @@ test('keyword filter: requirement matches any alternative in a slash list', () =
   assert.deepEqual(values, ['breaker', 'Kyo', 50, 0]);
 });
 
+test('stat filters use whitelisted columns and parameters', () => {
+  const { text, values } = buildCardSearch({
+    ...base,
+    stats: [
+      { stat: 'difficulty', op: 'lte', n: 3 },
+      { stat: 'block_modifier', op: 'gte', n: 2 },
+    ],
+  });
+  assert.ok(text.includes('c.difficulty <= $1'));
+  assert.ok(text.includes('c.block_modifier >= $2'));
+  assert.deepEqual(values, [3, 2, 50, 0]);
+});
+
+test('parseCardSearch: stat filters', () => {
+  const p = parseCardSearch({ stat: ['difficulty:lte:3', 'control:4'] });
+  assert.deepEqual(p.stats, [
+    { stat: 'difficulty', op: 'lte', n: 3 },
+    { stat: 'control', op: 'eq', n: 4 },
+  ]);
+  assert.throws(() => parseCardSearch({ stat: 'power:3' }), FilterError);
+});
+
 test('ability filters: all vs any', () => {
   const all = buildCardSearch({ ...base, abilities: ['blitz', 'response'] });
   assert.ok(all.text.includes('c.ability_types @> $1::text[]'));
@@ -84,7 +107,7 @@ test('escapeLike', () => {
 test('parseCardSearch: defaults and full example', () => {
   const d = parseCardSearch({});
   assert.deepEqual(d, {
-    q: undefined, types: [], sets: [], format: undefined, keywords: [], abilities: [],
+    q: undefined, types: [], sets: [], format: undefined, keywords: [], stats: [], abilities: [],
     abilityMatch: 'all', page: 1, pageSize: 50,
   });
 

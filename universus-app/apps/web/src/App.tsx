@@ -15,6 +15,8 @@ export default function App() {
   const [keywordText, setKeywordText] = useState('');
   const [abilities, setAbilities] = useState<string[]>([]);
   const [abilityMatch, setAbilityMatch] = useState<'all' | 'any'>('all');
+  // minimum and maximum typed for each stat, keyed by the stat's key from /meta
+  const [statInputs, setStatInputs] = useState<Record<string, { min: string; max: string }>>({});
   const [result, setResult] = useState<CardSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,10 @@ export default function App() {
     if (format) params.set('format', format);
     for (const line of keywordText.split('\n')) {
       if (line.trim()) params.append('keyword', line.trim());
+    }
+    for (const [key, range] of Object.entries(statInputs)) {
+      if (range.min.trim() !== '') params.append('stat', `${key}:gte:${range.min.trim()}`);
+      if (range.max.trim() !== '') params.append('stat', `${key}:lte:${range.max.trim()}`);
     }
     for (const a of abilities) params.append('ability', a);
     if (abilities.length > 1) params.set('ability_match', abilityMatch);
@@ -53,6 +59,13 @@ export default function App() {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     void search(1);
+  }
+
+  function setStat(key: string, which: 'min' | 'max', value: string) {
+    setStatInputs((current) => ({
+      ...current,
+      [key]: { min: current[key]?.min ?? '', max: current[key]?.max ?? '', [which]: value },
+    }));
   }
 
   function toggleAbility(type: string) {
@@ -107,6 +120,30 @@ export default function App() {
               <option value="any">match any</option>
             </select>
           </label>
+        </fieldset>
+
+        <fieldset className="stats">
+          <legend>Stats (leave blank for any)</legend>
+          {meta?.stats.map((st) => (
+            <div key={st.key} className="stat-row">
+              <span>{st.label}</span>
+              <input
+                type="number"
+                aria-label={`${st.label} minimum`}
+                placeholder={st.min === null ? 'min' : `min ${st.min}`}
+                value={statInputs[st.key]?.min ?? ''}
+                onChange={(e) => setStat(st.key, 'min', e.target.value)}
+              />
+              <span>to</span>
+              <input
+                type="number"
+                aria-label={`${st.label} maximum`}
+                placeholder={st.max === null ? 'max' : `max ${st.max}`}
+                value={statInputs[st.key]?.max ?? ''}
+                onChange={(e) => setStat(st.key, 'max', e.target.value)}
+              />
+            </div>
+          ))}
         </fieldset>
 
         <label className="wide">
