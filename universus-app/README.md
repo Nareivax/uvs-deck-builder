@@ -45,6 +45,8 @@ All read-only for now.
 | `format` | `format=Standard` | legal in this format |
 | `keyword` | `keyword=powerful:gte:2` | repeat for several (AND). Forms: `name`, `name:2`, `name:gte:2` (eq, gt, gte, lt, lte), `name:detail:kick`, `name:detail_contains:ki`, `name:requirement:kyo` |
 | `stat` | `stat=difficulty:lte:3` | numeric stats: difficulty, control, block_modifier, attack_speed, attack_damage, hand_size, vitality. Forms: `stat:3`, `stat:gte:3` (eq, gt, gte, lt, lte); repeat for several (AND) |
+| `keyword_any` | `keyword_any=throw&keyword_any=slam` | same forms as `keyword`, but a card needs only one of them (OR). Can be combined with `keyword` |
+| `symbol`, `symbol_any` | `symbol=earth&symbol_any=at_fire` | resource symbols; `earth` is the plain symbol, `at_earth` the attuned one. `symbol` needs all of them, `symbol_any` at least one |
 | `ability` | `ability=blitz&ability=response` | ability type(s); also `ability=blitz,response` |
 | `ability_match` | `ability_match=any` | `all` (default) or `any` for the ability list |
 | `page`, `page_size` | `page=2&page_size=30` | paging (page_size max 200) |

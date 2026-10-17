@@ -76,4 +76,6 @@ export interface MetaResponse {
   abilityTypes: string[];
   cardTypes: string[];
   stats: StatInfo[];
+  /** Symbol codes such as earth. Each can be searched plain (earth) or attuned (at_earth). */
+  symbols: string[];
 }

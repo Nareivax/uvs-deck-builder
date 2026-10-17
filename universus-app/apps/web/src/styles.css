@@ -18,3 +18,24 @@ body { margin: 0; }
 .stat-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
 .stat-row > span:first-child { width: 6.5rem; }
 .stat-row input { width: 5.5rem; }
+
+/* keyword / symbol / ability checkboxes: big enough to tap */
+.filters .choices { display: block; }
+.filters .choices h3 { margin: 0.6rem 0 0.2rem; font-size: 0.85rem; color: #555; }
+.filters .toggle { flex-direction: row; align-items: center; gap: 0.4rem; min-height: 2.4rem; margin-bottom: 0.25rem; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0 0.5rem; }
+.check-item { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0.4rem; }
+.filters .check-item label { flex-direction: row; align-items: center; gap: 0.45rem; min-height: 2.4rem; font-size: 0.95rem; }
+.check-item input[type='checkbox'], .filters .toggle input { width: 1.2rem; height: 1.2rem; }
+.value-box { display: inline-flex; gap: 0.25rem; }
+.value-box select { width: 3.2rem; }
+.value-box input { width: 4rem; }
+.filters .advanced { grid-column: 1 / -1; }
+.filters .advanced summary { cursor: pointer; min-height: 2.4rem; display: flex; align-items: center; }
+.button-row { grid-column: 1 / -1; display: flex; gap: 0.5rem; }
+.button-row button { min-height: 2.6rem; padding: 0 1.2rem; }
+.button-row .secondary { background: #fff; border: 1px solid #999; }
+@media (max-width: 600px) {
+  .button-row { position: sticky; bottom: 0; background: #fff; padding: 0.5rem 0; border-top: 1px solid #ddd; }
+  .button-row button[type='submit'] { flex: 1; }
+}

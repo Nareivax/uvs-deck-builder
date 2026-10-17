@@ -9,7 +9,10 @@ const base: CardSearchParams = {
   types: [],
   sets: [],
   keywords: [],
+  keywordsAny: [],
   stats: [],
+  symbols: [],
+  symbolsAny: [],
   abilities: [],
   abilityMatch: 'all',
   page: 1,
@@ -92,6 +95,44 @@ test('parseCardSearch: stat filters', () => {
   assert.throws(() => parseCardSearch({ stat: 'power:3' }), FilterError);
 });
 
+test('keyword_any: one OR group, separate from the AND filters', () => {
+  const { text, values } = buildCardSearch({
+    ...base,
+    keywords: [{ name: 'throw' }],
+    keywordsAny: [{ name: 'powerful', value: { op: 'gte', n: 2 } }, { name: 'slam' }],
+  });
+  assert.equal((text.match(/EXISTS \(SELECT 1 FROM card_keywords/g) ?? []).length, 3);
+  assert.ok(text.includes(' OR EXISTS (SELECT 1 FROM card_keywords'));
+  assert.deepEqual(values, ['throw', 'powerful', 2, 'slam', 50, 0]);
+  // the OR group is wrapped in brackets so it cannot leak into the AND chain
+  assert.ok(/AND\s+\(EXISTS/.test(text), text);
+});
+
+test('symbol filters: plain vs attuned, all vs any', () => {
+  const { text, values } = buildCardSearch({
+    ...base,
+    symbols: [{ symbol: 'earth', attuned: false }],
+    symbolsAny: [{ symbol: 'fire', attuned: true }, { symbol: 'water', attuned: false }],
+  });
+  assert.equal((text.match(/FROM card_symbols cs/g) ?? []).length, 3);
+  assert.ok(text.includes('cs.symbol = $1 AND cs.attuned = $2'));
+  assert.deepEqual(values, ['earth', false, 'fire', true, 'water', false, 50, 0]);
+});
+
+test('parseCardSearch: keyword_any and symbols', () => {
+  const p = parseCardSearch({
+    keyword_any: ['throw', 'powerful:gte:2'],
+    symbol: 'earth',
+    symbol_any: ['at_fire', 'water'],
+  });
+  assert.equal(p.keywordsAny.length, 2);
+  assert.deepEqual(p.symbols, [{ symbol: 'earth', attuned: false }]);
+  assert.deepEqual(p.symbolsAny, [
+    { symbol: 'fire', attuned: true },
+    { symbol: 'water', attuned: false },
+  ]);
+});
+
 test('ability filters: all vs any', () => {
   const all = buildCardSearch({ ...base, abilities: ['blitz', 'response'] });
   assert.ok(all.text.includes('c.ability_types @> $1::text[]'));
@@ -107,7 +148,8 @@ test('escapeLike', () => {
 test('parseCardSearch: defaults and full example', () => {
   const d = parseCardSearch({});
   assert.deepEqual(d, {
-    q: undefined, types: [], sets: [], format: undefined, keywords: [], stats: [], abilities: [],
+    q: undefined, types: [], sets: [], format: undefined, keywords: [], keywordsAny: [],
+    stats: [], symbols: [], symbolsAny: [], abilities: [],
     abilityMatch: 'all', page: 1, pageSize: 50,
   });
 
@@ -141,7 +183,9 @@ test('parseCardSearch: bad input is a FilterError', () => {
     { page: 'abc' },
     { page_size: '9999' },
     { q: 'x'.repeat(201) },
-    { keyword: Array.from({ length: 11 }, () => 'throw') },
+    { keyword: Array.from({ length: 21 }, () => 'throw') },
+    { keyword_any: Array.from({ length: 51 }, () => 'throw') },
+    { symbol: 'ea rth' },
   ]) {
     assert.throws(() => parseCardSearch(bad), FilterError, JSON.stringify(bad).slice(0, 60));
   }

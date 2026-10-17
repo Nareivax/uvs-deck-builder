@@ -1,4 +1,10 @@
-import { FilterError, parseAbilityTypes, parseKeywordFilter, parseStatFilter } from '@universus/shared';
+import {
+  FilterError,
+  parseAbilityTypes,
+  parseKeywordFilter,
+  parseStatFilter,
+  parseSymbolFilter,
+} from '@universus/shared';
 import type { CardSearchParams } from './cardQuery.ts';
 
 export type RawQuery = Record<string, string | string[] | undefined>;
@@ -27,8 +33,16 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
   const q = one(query.q);
   if (q !== undefined && q.length > 200) throw new FilterError('q is too long (200 characters max)');
 
-  const keywordParams = many(query.keyword).filter((s) => s.trim() !== '');
-  if (keywordParams.length > 10) throw new FilterError('At most 10 keyword filters are allowed');
+  const nonBlank = (v: string | string[] | undefined) => many(v).filter((s) => s.trim() !== '');
+  const keywordParams = nonBlank(query.keyword);
+  if (keywordParams.length > 20) throw new FilterError('At most 20 keyword filters are allowed');
+  const keywordAnyParams = nonBlank(query.keyword_any);
+  if (keywordAnyParams.length > 50) throw new FilterError('At most 50 keyword_any filters are allowed');
+  const symbolParams = nonBlank(query.symbol);
+  const symbolAnyParams = nonBlank(query.symbol_any);
+  if (symbolParams.length > 30 || symbolAnyParams.length > 30) {
+    throw new FilterError('At most 30 symbol filters are allowed');
+  }
 
   const statParams = many(query.stat).filter((s) => s.trim() !== '');
   if (statParams.length > 20) throw new FilterError('At most 20 stat filters are allowed');
@@ -42,6 +56,9 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
     sets: many(query.set).map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 20),
     format: one(query.format),
     keywords: keywordParams.map(parseKeywordFilter),
+    keywordsAny: keywordAnyParams.map(parseKeywordFilter),
+    symbols: symbolParams.map(parseSymbolFilter),
+    symbolsAny: symbolAnyParams.map(parseSymbolFilter),
     stats: statParams.map(parseStatFilter),
     abilities: parseAbilityTypes(many(query.ability)),
     abilityMatch: match,

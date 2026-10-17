@@ -46,7 +46,7 @@ export async function buildServer() {
 
   // Everything the filter UI needs in one call
   app.get('/meta', async (): Promise<MetaResponse> => {
-    const [keywords, formats, sets, types, ranges] = await Promise.all([
+    const [keywords, formats, sets, types, ranges, symbols] = await Promise.all([
       pool.query(`SELECT id, name::text AS name, has_value AS "hasValue" FROM keywords ORDER BY name`),
       pool.query(`SELECT id, name FROM formats ORDER BY name`),
       pool.query(
@@ -60,6 +60,7 @@ export async function buildServer() {
           (st) => `min(${STAT_COLUMNS[st.key]}) AS "${st.key}_min", max(${STAT_COLUMNS[st.key]}) AS "${st.key}_max"`,
         ).join(', ')} FROM cards`,
       ),
+      pool.query(`SELECT code FROM symbols ORDER BY code`),
     ]);
     return {
       keywords: keywords.rows as KeywordInfo[],
@@ -67,6 +68,7 @@ export async function buildServer() {
       sets: sets.rows,
       abilityTypes: [...ABILITY_TYPES],
       cardTypes: types.rows.map((r: { card_type: string }) => r.card_type),
+      symbols: symbols.rows.map((r: { code: string }) => r.code),
       stats: STATS.map((st) => ({
         key: st.key,
         label: st.label,

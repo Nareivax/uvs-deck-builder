@@ -72,3 +72,17 @@ touching the API. For example, the card type dropdown can become checkboxes, bec
 The same idea works for keywords: the free-text box can become a picker built from
 `meta.keywords` (which says whether each keyword takes a rating via `hasValue`) that writes
 `powerful:gte:2`-style text into the same `keyword` parameter.
+
+## The search form's state (apps/web/src/searchParams.ts)
+
+All the form's values live in one `Filters` object, and `buildSearchParams` turns it into URL
+parameters. It has no React in it, so it has its own tests (`npm test` in `apps/web`).
+When you add or change a control, the steps are:
+
+1. add the field to `Filters` and `EMPTY_FILTERS`
+2. add the control in `App.tsx` that calls `change('field', value)` (or a small helper)
+3. add the lines to `buildSearchParams` and a test for them
+
+Keywords and symbols are checkboxes. "Match all" sends them as `keyword` / `symbol` (AND);
+unticked, they go as `keyword_any` / `symbol_any` (OR). A keyword that takes a rating (`hasValue`
+in `/meta`) shows a comparison and a value box once it is ticked.

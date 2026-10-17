@@ -1,12 +1,18 @@
-import type { KeywordFilter, NumberOp, StatFilter, StatKey } from '@universus/shared';
+import type { KeywordFilter, NumberOp, StatFilter, StatKey, SymbolFilter } from '@universus/shared';
 
 export interface CardSearchParams {
   q?: string;
   types: string[];
   sets: string[];
   format?: string;
+  /** Every one of these must match (AND). */
   keywords: KeywordFilter[];
+  /** At least one of these must match (OR). */
+  keywordsAny: KeywordFilter[];
   stats: StatFilter[];
+  /** Resource symbols: all of these (AND), and at least one of these (OR). */
+  symbols: SymbolFilter[];
+  symbolsAny: SymbolFilter[];
   abilities: string[];
   abilityMatch: 'all' | 'any';
   page: number;
@@ -74,7 +80,7 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
                WHERE cf.card_id = c.id AND lower(f.name) = lower(${add(p.format)}))`,
     );
   }
-  for (const kf of p.keywords) {
+  const keywordExists = (kf: KeywordFilter): string => {
     const parts = ['ck.card_id = c.id', `k.name = ${add(kf.name)}`];
     if (kf.value) parts.push(`ck.value ${SQL_OPS[kf.value.op]} ${add(kf.value.n)}`);
     if (kf.detail) {
@@ -90,13 +96,23 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
         `lower(${add(kf.requirement)}) = ANY(string_to_array(lower(ck.requirement::text), '/'))`,
       );
     }
-    where.push(
-      `EXISTS (SELECT 1 FROM card_keywords ck JOIN keywords k ON k.id = ck.keyword_id
-               WHERE ${parts.join(' AND ')})`,
-    );
+    return `EXISTS (SELECT 1 FROM card_keywords ck JOIN keywords k ON k.id = ck.keyword_id
+               WHERE ${parts.join(' AND ')})`;
+  };
+  for (const kf of p.keywords) where.push(keywordExists(kf));
+  if (p.keywordsAny.length > 0) {
+    where.push(`(${p.keywordsAny.map(keywordExists).join(' OR ')})`);
   }
+
   for (const sf of p.stats) {
     where.push(`c.${STAT_COLUMNS[sf.stat]} ${SQL_OPS[sf.op]} ${add(sf.n)}`);
+  }
+  const symbolExists = (sf: SymbolFilter): string =>
+    `EXISTS (SELECT 1 FROM card_symbols cs
+             WHERE cs.card_id = c.id AND cs.symbol = ${add(sf.symbol)} AND cs.attuned = ${add(sf.attuned)})`;
+  for (const sf of p.symbols) where.push(symbolExists(sf));
+  if (p.symbolsAny.length > 0) {
+    where.push(`(${p.symbolsAny.map(symbolExists).join(' OR ')})`);
   }
   if (p.abilities.length > 0) {
     const op = p.abilityMatch === 'any' ? '&&' : '@>';

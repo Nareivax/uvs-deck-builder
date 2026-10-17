@@ -3,4 +3,5 @@ export * from './deckText.ts';
 export * from './errors.ts';
 export * from './keywordFilter.ts';
 export * from './stats.ts';
+export * from './symbols.ts';
 export type * from './types.ts';
