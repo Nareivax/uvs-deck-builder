@@ -39,6 +39,10 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
   if (keywordParams.length > 20) throw new FilterError('At most 20 keyword filters are allowed');
   const keywordAnyParams = nonBlank(query.keyword_any);
   if (keywordAnyParams.length > 50) throw new FilterError('At most 50 keyword_any filters are allowed');
+
+  const keywordNotParams = nonBlank(query.not_keyword);
+  if (keywordNotParams.length > 50) throw new FilterError('At most 50 not_keyword filters are allowed');
+
   const symbolParams = nonBlank(query.symbol);
   const symbolAnyParams = nonBlank(query.symbol_any);
   if (symbolParams.length > 30 || symbolAnyParams.length > 30) {
@@ -58,6 +62,7 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
     format: one(query.format),
     keywords: keywordParams.map(parseKeywordFilter),
     keywordsAny: keywordAnyParams.map(parseKeywordFilter),
+    keywordsNot: keywordNotParams.map(parseKeywordFilter),
     symbols: symbolParams.map(parseSymbolFilter),
     symbolsAny: symbolAnyParams.map(parseSymbolFilter),
     stats: statParams.map(parseStatFilter),

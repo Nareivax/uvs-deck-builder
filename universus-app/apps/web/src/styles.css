@@ -39,3 +39,11 @@ body { margin: 0; }
   .button-row { position: sticky; bottom: 0; background: #fff; padding: 0.5rem 0; border-top: 1px solid #ddd; }
   .button-row button[type='submit'] { flex: 1; }
 }
+
+.tri { display: flex; align-items: center; gap: 0.45rem; min-height: 2.4rem; padding: 0;
+  background: none; border: 0; font: inherit; font-size: 0.95rem; cursor: pointer; text-align: left; }
+.tri-box { width: 1.2rem; height: 1.2rem; border: 1px solid #777; border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; line-height: 1; }
+.tri[data-state='include'] .tri-box { background: #1b7f3b; border-color: #1b7f3b; color: #fff; }
+.tri[data-state='exclude'] .tri-box { background: #b00020; border-color: #b00020; color: #fff; }
+.tri[data-state='exclude'] { text-decoration: line-through; color: #b00020; }

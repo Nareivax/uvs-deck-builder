@@ -73,3 +73,8 @@ test('Zones', () => {
   const all = buildSearchParams(withFilters({ attackZones: ['low'] }), 1);
   assert.deepEqual(all.getAll('attack_zone'), ['low']);
 });
+
+test('Keywords Not', () => {
+  const any = buildSearchParams(withFilters({ keywordsNot: ['Spell'] }), 1);
+  assert.deepEqual(any.getAll('not_keyword'), ['Spell']);
+});

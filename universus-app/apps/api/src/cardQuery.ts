@@ -7,6 +7,8 @@ export interface CardSearchParams {
   format?: string;
   /** Every one of these must match (AND). */
   keywords: KeywordFilter[];
+  /** Must not match any of these */
+  keywordsNot: KeywordFilter[];
   /** At least one of these must match (OR). */
   keywordsAny: KeywordFilter[];
   stats: StatFilter[];
@@ -105,6 +107,8 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
   if (p.keywordsAny.length > 0) {
     where.push(`(${p.keywordsAny.map(keywordExists).join(' OR ')})`);
   }
+
+  for (const kf of p.keywordsNot) where.push(`NOT ${keywordExists(kf)}`);
 
   for (const sf of p.stats) {
     where.push(`c.${STAT_COLUMNS[sf.stat]} ${SQL_OPS[sf.op]} ${add(sf.n)}`);

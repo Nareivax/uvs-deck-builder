@@ -10,6 +10,7 @@ const base: CardSearchParams = {
   sets: [],
   keywords: [],
   keywordsAny: [],
+  keywordsNot: [],
   stats: [],
   symbols: [],
   symbolsAny: [],
@@ -151,7 +152,7 @@ test('parseCardSearch: defaults and full example', () => {
   const d = parseCardSearch({});
   assert.deepEqual(d, {
     q: undefined, types: [], sets: [], format: undefined, keywords: [], keywordsAny: [],
-    stats: [], symbols: [], symbolsAny: [], abilities: [],
+    keywordsNot: [], stats: [], symbols: [], symbolsAny: [], abilities: [],
     abilityMatch: 'all', page: 1, pageSize: 50, blockZones: [], attackZones: [],
   });
 
@@ -198,4 +199,14 @@ test('zone filters', () => {
   assert.ok(text.includes('c.block_zone = ANY($1::text[])'));
   assert.ok(text.includes('c.attack_zone = ANY($2::text[])'));
   assert.deepEqual(values, [['high', 'mid'], ['low'], 50, 0]);
+});
+
+test('not_keyword: NOT EXISTS, always ANDed', () => {
+  const { text, values } = buildCardSearch({
+    ...base,
+    keywords: [{ name: 'quest' }],
+    keywordsNot: [{ name: 'spell' }],
+  });
+  assert.ok(text.includes('NOT EXISTS (SELECT 1 FROM card_keywords'));
+  assert.deepEqual(values, ['quest', 'spell', 50, 0]);
 });

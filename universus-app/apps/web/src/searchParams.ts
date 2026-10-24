@@ -26,6 +26,8 @@ export interface Filters {
   keywords: Record<string, KeywordChoice>;
   /** true: a card needs every ticked keyword. false: any one of them is enough. */
   keywordsAll: boolean;
+  /** Excluded keywords */
+  keywordsNot: string[];
   /** Extra keyword filters typed by hand, one per line (detail, requirement, ...). Always AND. */
   keywordText: string;
   /** Ticked symbols: "earth" is the plain symbol, "at_earth" the attuned one. */
@@ -45,6 +47,7 @@ export const EMPTY_FILTERS: Filters = {
   format: '',
   keywords: {},
   keywordsAll: false,
+  keywordsNot: [],
   keywordText: '',
   symbols: [],
   symbolsAll: false,
@@ -66,6 +69,9 @@ export function buildSearchParams(f: Filters, page: number, pageSize = 30): URLS
     const token = value === '' ? name : `${name}:${choice.op}:${value}`;
     params.append(f.keywordsAll ? 'keyword' : 'keyword_any', token);
   }
+
+  for (const name of f.keywordsNot) params.append('not_keyword', name);
+
   for (const line of f.keywordText.split('\n')) {
     if (line.trim()) params.append('keyword', line.trim());
   }

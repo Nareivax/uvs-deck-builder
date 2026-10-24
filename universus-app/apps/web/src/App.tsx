@@ -45,12 +45,19 @@ export default function App() {
     setFilters((f) => ({ ...f, [key]: value }));
   }
 
-  function toggleKeyword(name: string) {
+  function cycleKeyword(name: string) {
     setFilters((f) => {
       const keywords = { ...f.keywords };
-      if (keywords[name]) delete keywords[name];
-      else keywords[name] = { op: 'eq', value: '' };
-      return { ...f, keywords };
+      let keywordsNot = f.keywordsNot;
+      if (keywords[name]) {                 // include -> exclude
+        delete keywords[name];
+        keywordsNot = [...keywordsNot, name];
+      } else if (keywordsNot.includes(name)) { // exclude -> nothing
+        keywordsNot = keywordsNot.filter((n) => n !== name);
+      } else {                              // nothing -> include
+        keywords[name] = { op: 'eq', value: '' };
+      }
+      return { ...f, keywords, keywordsNot };
     });
   }
 
@@ -149,23 +156,34 @@ export default function App() {
 
         <fieldset className="choices">
           <legend>Keywords</legend>
+          <p className="hint">Tap once to include, twice to exclude.</p>
           <label className="toggle">
             <input
               type="checkbox"
               checked={filters.keywordsAll}
               onChange={(e) => change('keywordsAll', e.target.checked)}
             />
-            Match all selected keywords
+            Match all included keywords
           </label>
           <div className="check-grid">
             {meta?.keywords.map((k) => {
               const choice = filters.keywords[k.name];
+              const excluded = filters.keywordsNot.includes(k.name);
+              const state = choice ? 'include' : excluded ? 'exclude' : 'off';
               return (
                 <div key={k.id} className="check-item">
-                  <label>
-                    <input type="checkbox" checked={Boolean(choice)} onChange={() => toggleKeyword(k.name)} />
+                  <button
+                    type="button"
+                    className="tri"
+                    data-state={state}
+                    aria-label={`${k.name}: ${state === 'off' ? 'not filtered' : state === 'include' ? 'must have' : 'must not have'}`}
+                    onClick={() => cycleKeyword(k.name)}
+                  >
+                    <span className="tri-box" aria-hidden="true">
+                      {state === 'include' ? '✓' : state === 'exclude' ? '✕' : ''}
+                    </span>
                     {k.name}
-                  </label>
+                  </button>
                   {choice && k.hasValue && (
                     <span className="value-box">
                       <select
