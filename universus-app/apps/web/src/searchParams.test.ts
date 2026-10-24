@@ -48,7 +48,7 @@ test('abilities, stats and the basic fields', () => {
   const p = buildSearchParams(
     withFilters({
       q: ' tomura ',
-      cardType: 'attack',
+      cardTypes: ['attack', 'foundation'],
       format: 'Standard',
       abilities: ['blitz', 'response'],
       abilityMatch: 'any',
@@ -58,11 +58,18 @@ test('abilities, stats and the basic fields', () => {
     20,
   );
   assert.equal(p.get('q'), 'tomura');
-  assert.equal(p.get('type'), 'attack');
+  assert.deepEqual(p.getAll('type'), ['attack', 'foundation']);
   assert.equal(p.get('format'), 'Standard');
   assert.deepEqual(p.getAll('ability'), ['blitz', 'response']);
   assert.equal(p.get('ability_match'), 'any');
   assert.deepEqual(p.getAll('stat'), ['difficulty:gte:2', 'control:lte:4']);
   assert.equal(p.get('page'), '3');
   assert.equal(p.get('page_size'), '20');
+});
+
+test('Zones', () => {
+  const any = buildSearchParams(withFilters({ blockZones: ['high', 'mid'] }), 1);
+  assert.deepEqual(any.getAll('block_zone'), ['high', 'mid']);
+  const all = buildSearchParams(withFilters({ attackZones: ['low'] }), 1);
+  assert.deepEqual(all.getAll('attack_zone'), ['low']);
 });

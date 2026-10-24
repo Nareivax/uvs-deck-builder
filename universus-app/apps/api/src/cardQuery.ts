@@ -17,6 +17,8 @@ export interface CardSearchParams {
   abilityMatch: 'all' | 'any';
   page: number;
   pageSize: number;
+  blockZones: string[];
+  attackZones: string[];
 }
 
 export interface BuiltQuery {
@@ -118,6 +120,8 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
     const op = p.abilityMatch === 'any' ? '&&' : '@>';
     where.push(`c.ability_types ${op} ${add(p.abilities)}::text[]`);
   }
+  if (p.blockZones.length > 0) where.push(`c.block_zone = ANY(${add(p.blockZones)}::text[])`);
+  if (p.attackZones.length > 0) where.push(`c.attack_zone = ANY(${add(p.attackZones)}::text[])`);
 
   const limit = add(p.pageSize);
   const offset = add((p.page - 1) * p.pageSize);

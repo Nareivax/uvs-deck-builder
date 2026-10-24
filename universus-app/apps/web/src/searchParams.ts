@@ -20,7 +20,7 @@ export interface KeywordChoice {
 
 export interface Filters {
   q: string;
-  cardType: string;
+  cardTypes: string[];
   format: string;
   /** Ticked keywords by name, with the value typed next to keywords that take one. */
   keywords: Record<string, KeywordChoice>;
@@ -35,11 +35,13 @@ export interface Filters {
   abilityMatch: 'all' | 'any';
   /** Minimum and maximum typed for each stat, by stat key. */
   stats: Record<string, { min: string; max: string }>;
+  blockZones: string[];
+  attackZones: string[];
 }
 
 export const EMPTY_FILTERS: Filters = {
   q: '',
-  cardType: '',
+  cardTypes: [],
   format: '',
   keywords: {},
   keywordsAll: false,
@@ -49,12 +51,14 @@ export const EMPTY_FILTERS: Filters = {
   abilities: [],
   abilityMatch: 'all',
   stats: {},
+  blockZones: [], 
+  attackZones: [],
 };
 
 export function buildSearchParams(f: Filters, page: number, pageSize = 30): URLSearchParams {
   const params = new URLSearchParams();
   if (f.q.trim()) params.set('q', f.q.trim());
-  if (f.cardType) params.set('type', f.cardType);
+  for (const type of f.cardTypes) params.append('type', type);
   if (f.format) params.set('format', f.format);
 
   for (const [name, choice] of Object.entries(f.keywords)) {
@@ -77,6 +81,9 @@ export function buildSearchParams(f: Filters, page: number, pageSize = 30): URLS
     if (range.min.trim() !== '') params.append('stat', `${key}:gte:${range.min.trim()}`);
     if (range.max.trim() !== '') params.append('stat', `${key}:lte:${range.max.trim()}`);
   }
+
+  for (const z of f.blockZones) params.append('block_zone', z);
+  for (const z of f.attackZones) params.append('attack_zone', z);
 
   params.set('page', String(page));
   params.set('page_size', String(pageSize));

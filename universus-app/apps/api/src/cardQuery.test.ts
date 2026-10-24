@@ -17,6 +17,8 @@ const base: CardSearchParams = {
   abilityMatch: 'all',
   page: 1,
   pageSize: 50,
+  blockZones: [], 
+  attackZones: [],
 };
 
 test('no filters: no WHERE, paging only', () => {
@@ -150,7 +152,7 @@ test('parseCardSearch: defaults and full example', () => {
   assert.deepEqual(d, {
     q: undefined, types: [], sets: [], format: undefined, keywords: [], keywordsAny: [],
     stats: [], symbols: [], symbolsAny: [], abilities: [],
-    abilityMatch: 'all', page: 1, pageSize: 50,
+    abilityMatch: 'all', page: 1, pageSize: 50, blockZones: [], attackZones: [],
   });
 
   const p = parseCardSearch({
@@ -189,4 +191,11 @@ test('parseCardSearch: bad input is a FilterError', () => {
   ]) {
     assert.throws(() => parseCardSearch(bad), FilterError, JSON.stringify(bad).slice(0, 60));
   }
+});
+
+test('zone filters', () => {
+  const { text, values } = buildCardSearch({ ...base, blockZones: ['high', 'mid'], attackZones: ['low'] });
+  assert.ok(text.includes('c.block_zone = ANY($1::text[])'));
+  assert.ok(text.includes('c.attack_zone = ANY($2::text[])'));
+  assert.deepEqual(values, [['high', 'mid'], ['low'], 50, 0]);
 });

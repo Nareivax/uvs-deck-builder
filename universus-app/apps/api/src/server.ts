@@ -1,6 +1,6 @@
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
-import { ABILITY_TYPES, FilterError, STATS } from '@universus/shared';
+import { ABILITY_TYPES, FilterError, STATS, ZONES} from '@universus/shared';
 import type {
   CardDetail,
   CardListItem,
@@ -53,8 +53,7 @@ export async function buildServer() {
         `SELECT id, code, name, to_char(release_date, 'YYYY-MM-DD') AS "releaseDate"
          FROM sets ORDER BY release_date DESC NULLS LAST, name`,
       ),
-      pool.query(`SELECT DISTINCT card_type FROM cards ORDER BY card_type`),
-      // lowest and highest value of every filterable stat, in one query
+      pool.query(`SELECT DISTINCT card_type FROM cards WHERE card_type <> '' ORDER BY card_type`),      // lowest and highest value of every filterable stat, in one query
       pool.query(
         `SELECT ${STATS.map(
           (st) => `min(${STAT_COLUMNS[st.key]}) AS "${st.key}_min", max(${STAT_COLUMNS[st.key]}) AS "${st.key}_max"`,
@@ -75,6 +74,7 @@ export async function buildServer() {
         min: ranges.rows[0]?.[`${st.key}_min`] ?? null,
         max: ranges.rows[0]?.[`${st.key}_max`] ?? null,
       })),
+      zones: [...ZONES],
     };
   });
 

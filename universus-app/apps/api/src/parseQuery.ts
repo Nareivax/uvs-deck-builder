@@ -4,6 +4,7 @@ import {
   parseKeywordFilter,
   parseStatFilter,
   parseSymbolFilter,
+  parseZones,
 } from '@universus/shared';
 import type { CardSearchParams } from './cardQuery.ts';
 
@@ -64,5 +65,7 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
     abilityMatch: match,
     page: intParam(query.page, 'page', 1, 1, 10000),
     pageSize: intParam(query.page_size, 'page_size', 50, 1, 200),
+    blockZones: parseZones(many(query.block_zone), 'block_zone'),
+    attackZones: parseZones(many(query.attack_zone), 'attack_zone'),
   };
 }

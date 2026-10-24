@@ -73,6 +73,18 @@ export default function App() {
     setFilters((f) => ({ ...f, abilities: toggled(f.abilities, type) }));
   }
 
+  function toggleCardType(type: string) {
+    setFilters((f) => ({ ...f, cardTypes: toggled(f.cardTypes, type) }));
+  }
+
+  function toggleBlockZone(zone: string) {
+    setFilters((f) => ({ ...f, blockZones: toggled(f.blockZones, zone) }));
+  }
+
+  function toggleAttackZone(zone: string) {
+    setFilters((f) => ({ ...f, attackZones: toggled(f.attackZones, zone) }));
+  }
+
   function setStat(key: string, which: 'min' | 'max', value: string) {
     setFilters((f) => {
       const current = f.stats[key] ?? { min: '', max: '' };
@@ -108,16 +120,6 @@ export default function App() {
         </label>
 
         <label>
-          Card type
-          <select value={filters.cardType} onChange={(e) => change('cardType', e.target.value)}>
-            <option value="">Any</option>
-            {meta?.cardTypes.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </label>
-
-        <label>
           Format
           <select value={filters.format} onChange={(e) => change('format', e.target.value)}>
             <option value="">Any</option>
@@ -126,6 +128,24 @@ export default function App() {
             ))}
           </select>
         </label>
+
+        <fieldset className="choices">
+          <legend>Card type</legend>
+          <div className="check-grid">
+            {meta?.cardTypes.map((t) => (
+              <div key={t} className="check-item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={filters.cardTypes.includes(t)}
+                    onChange={() => toggleCardType(t)}
+                  />
+                  {titleCase(t)}
+                </label>
+              </div>
+            ))}
+          </div>
+        </fieldset>
 
         <fieldset className="choices">
           <legend>Keywords</legend>
@@ -231,6 +251,32 @@ export default function App() {
             />
             Match all selected ability types
           </label>
+        </fieldset>
+
+        <fieldset className="choices">
+          <legend>Zones</legend>
+          <h3>Block zone</h3>
+          <div className="check-grid">
+            {meta?.zones.map((z) => (
+              <div key={z} className="check-item">
+                <label>
+                  <input type="checkbox" checked={filters.blockZones.includes(z)} onChange={() => toggleBlockZone(z)} />
+                  {titleCase(z)}
+                </label>
+              </div>
+            ))}
+          </div>
+          <h3>Attack zone</h3>
+          <div className="check-grid">
+            {meta?.zones.map((z) => (
+              <div key={z} className="check-item">
+                <label>
+                  <input type="checkbox" checked={filters.attackZones.includes(z)} onChange={() => toggleAttackZone(z)} />
+                  {titleCase(z)}
+                </label>
+              </div>
+            ))}
+          </div>
         </fieldset>
 
         <fieldset className="stats">
