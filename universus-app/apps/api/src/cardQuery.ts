@@ -14,6 +14,7 @@ export interface CardSearchParams {
   stats: StatFilter[];
   /** Resource symbols: all of these (AND), and at least one of these (OR). */
   symbols: SymbolFilter[];
+  symbolsNot: SymbolFilter[];
   symbolsAny: SymbolFilter[];
   abilities: string[];
   abilityMatch: 'all' | 'any';
@@ -104,11 +105,10 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
                WHERE ${parts.join(' AND ')})`;
   };
   for (const kf of p.keywords) where.push(keywordExists(kf));
+  for (const kf of p.keywordsNot) where.push(`NOT ${keywordExists(kf)}`);
   if (p.keywordsAny.length > 0) {
     where.push(`(${p.keywordsAny.map(keywordExists).join(' OR ')})`);
   }
-
-  for (const kf of p.keywordsNot) where.push(`NOT ${keywordExists(kf)}`);
 
   for (const sf of p.stats) {
     where.push(`c.${STAT_COLUMNS[sf.stat]} ${SQL_OPS[sf.op]} ${add(sf.n)}`);
@@ -120,6 +120,9 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
   if (p.symbolsAny.length > 0) {
     where.push(`(${p.symbolsAny.map(symbolExists).join(' OR ')})`);
   }
+
+  for (const sf of p.symbolsNot) where.push(`NOT ${symbolExists(sf)}`);
+
   if (p.abilities.length > 0) {
     const op = p.abilityMatch === 'any' ? '&&' : '@>';
     where.push(`c.ability_types ${op} ${add(p.abilities)}::text[]`);

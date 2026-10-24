@@ -33,6 +33,7 @@ export interface Filters {
   /** Ticked symbols: "earth" is the plain symbol, "at_earth" the attuned one. */
   symbols: string[];
   symbolsAll: boolean;
+  symbolsNot: string[];
   abilities: string[];
   abilityMatch: 'all' | 'any';
   /** Minimum and maximum typed for each stat, by stat key. */
@@ -51,6 +52,7 @@ export const EMPTY_FILTERS: Filters = {
   keywordText: '',
   symbols: [],
   symbolsAll: false,
+  symbolsNot: [],
   abilities: [],
   abilityMatch: 'all',
   stats: {},
@@ -80,6 +82,8 @@ export function buildSearchParams(f: Filters, page: number, pageSize = 30): URLS
     params.append(f.symbolsAll ? 'symbol' : 'symbol_any', symbol);
   }
 
+  for (const token of f.symbolsNot) params.append('not_symbol', token);
+  
   for (const type of f.abilities) params.append('ability', type);
   if (f.abilities.length > 1) params.set('ability_match', f.abilityMatch);
 

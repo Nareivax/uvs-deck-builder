@@ -78,3 +78,9 @@ test('Keywords Not', () => {
   const any = buildSearchParams(withFilters({ keywordsNot: ['Spell'] }), 1);
   assert.deepEqual(any.getAll('not_keyword'), ['Spell']);
 });
+
+test('excluded symbols and keywords', () => {
+  const p = buildSearchParams(withFilters({ symbolsNot: ['earth', 'at_fire'], keywordsNot: ['Spell'] }), 1);
+  assert.deepEqual(p.getAll('not_symbol'), ['earth', 'at_fire']);
+  assert.deepEqual(p.getAll('not_keyword'), ['Spell']);
+});

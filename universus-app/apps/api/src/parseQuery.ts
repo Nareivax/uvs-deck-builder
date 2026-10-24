@@ -49,6 +49,9 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
     throw new FilterError('At most 30 symbol filters are allowed');
   }
 
+  const symbolNotParams = nonBlank(query.not_symbol);
+  if (symbolNotParams.length > 60) throw new FilterError('At most 60 not_symbol filters are allowed');
+
   const statParams = many(query.stat).filter((s) => s.trim() !== '');
   if (statParams.length > 20) throw new FilterError('At most 20 stat filters are allowed');
 
@@ -65,6 +68,7 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
     keywordsNot: keywordNotParams.map(parseKeywordFilter),
     symbols: symbolParams.map(parseSymbolFilter),
     symbolsAny: symbolAnyParams.map(parseSymbolFilter),
+    symbolsNot: symbolNotParams.map(parseSymbolFilter),
     stats: statParams.map(parseStatFilter),
     abilities: parseAbilityTypes(many(query.ability)),
     abilityMatch: match,

@@ -61,6 +61,18 @@ export default function App() {
     });
   }
 
+  function cycleSymbol(token: string) {
+    setFilters((f) => {
+      if (f.symbols.includes(token)) {            // include -> exclude
+        return { ...f, symbols: f.symbols.filter((s) => s !== token), symbolsNot: [...f.symbolsNot, token] };
+      }
+      if (f.symbolsNot.includes(token)) {         // exclude -> nothing
+        return { ...f, symbolsNot: f.symbolsNot.filter((s) => s !== token) };
+      }
+      return { ...f, symbols: [...f.symbols, token] }; // nothing -> include
+    });
+  }
+
   function editKeyword(name: string, patch: Partial<KeywordChoice>) {
     setFilters((f) => ({
       ...f,
@@ -70,10 +82,6 @@ export default function App() {
 
   function toggled(list: string[], value: string): string[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-  }
-
-  function toggleSymbol(token: string) {
-    setFilters((f) => ({ ...f, symbols: toggled(f.symbols, token) }));
   }
 
   function toggleAbility(type: string) {
@@ -108,6 +116,30 @@ export default function App() {
   function reset() {
     setFilters(EMPTY_FILTERS);
     void search(EMPTY_FILTERS, 1);
+  }
+
+  function symbolButton(token: string, label: string) {
+    const state = filters.symbols.includes(token)
+      ? 'include'
+      : filters.symbolsNot.includes(token)
+        ? 'exclude'
+        : 'off';
+    return (
+      <div key={token} className="check-item">
+        <button
+          type="button"
+          className="tri"
+          data-state={state}
+          aria-label={`${label}: ${state === 'off' ? 'not filtered' : state === 'include' ? 'must have' : 'must not have'}`}
+          onClick={() => cycleSymbol(token)}
+        >
+          <span className="tri-box" aria-hidden="true">
+            {state === 'include' ? '✓' : state === 'exclude' ? '✕' : ''}
+          </span>
+          {label}
+        </button>
+      </div>
+    );
   }
 
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1;
@@ -213,39 +245,22 @@ export default function App() {
 
         <fieldset className="choices">
           <legend>Resource symbols</legend>
+          <p className="hint">Tap once to include, twice to exclude.</p>
           <label className="toggle">
             <input
               type="checkbox"
               checked={filters.symbolsAll}
               onChange={(e) => change('symbolsAll', e.target.checked)}
             />
-            Match all selected symbols
+            Match all included symbols
           </label>
           <h3>Symbols</h3>
           <div className="check-grid">
-            {meta?.symbols.map((code) => (
-              <div key={code} className="check-item">
-                <label>
-                  <input type="checkbox" checked={filters.symbols.includes(code)} onChange={() => toggleSymbol(code)} />
-                  {titleCase(code)}
-                </label>
-              </div>
-            ))}
+            {meta?.symbols.map((code) => symbolButton(code, titleCase(code)))}
           </div>
           <h3>Attuned symbols</h3>
           <div className="check-grid">
-            {meta?.symbols.map((code) => (
-              <div key={code} className="check-item">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={filters.symbols.includes(`at_${code}`)}
-                    onChange={() => toggleSymbol(`at_${code}`)}
-                  />
-                  {titleCase(code)}
-                </label>
-              </div>
-            ))}
+            {meta?.symbols.map((code) => symbolButton(`at_${code}`, titleCase(code)))}
           </div>
         </fieldset>
 
