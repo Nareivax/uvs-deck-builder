@@ -19,7 +19,8 @@ export interface KeywordChoice {
 }
 
 export interface Filters {
-  q: string;
+  name: string;
+  text: string;
   cardTypes: string[];
   format: string;
   /** Ticked keywords by name, with the value typed next to keywords that take one. */
@@ -43,7 +44,8 @@ export interface Filters {
 }
 
 export const EMPTY_FILTERS: Filters = {
-  q: '',
+  name: '',
+  text: '',
   cardTypes: [],
   format: '',
   keywords: {},
@@ -62,7 +64,8 @@ export const EMPTY_FILTERS: Filters = {
 
 export function buildSearchParams(f: Filters, page: number, pageSize = 30): URLSearchParams {
   const params = new URLSearchParams();
-  if (f.q.trim()) params.set('q', f.q.trim());
+  if (f.name.trim()) params.set('name', f.name.trim());
+  if (f.text.trim()) params.set('text', f.text.trim());
   for (const type of f.cardTypes) params.append('type', type);
   if (f.format) params.set('format', f.format);
 

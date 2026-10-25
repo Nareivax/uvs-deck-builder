@@ -39,7 +39,8 @@ All read-only for now.
 
 | Parameter | Example | Meaning |
 |---|---|---|
-| `q` | `q=tomura` | text search over name and rules text |
+| `name` | `name=tomura` | part of the card name (case-insensitive) |
+| `text` | `text=draw cards` | rules text only; words or a quoted phrase |
 | `type` | `type=attack&type=foundation` | card type(s), any of |
 | `set` | `set=sf62x` | set code(s), any of |
 | `format` | `format=Standard` | legal in this format |

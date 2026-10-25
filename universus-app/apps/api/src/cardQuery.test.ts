@@ -35,18 +35,25 @@ test('paging offset', () => {
   assert.deepEqual(values, [20, 40]);
 });
 
-test('text, type, set and format filters use parameters', () => {
+test('name, text, type, set and format filters use parameters', () => {
   const { text, values } = buildCardSearch({
-    ...base, q: 'draw 50%', types: ['attack'], sets: ['sf62x'], format: 'Standard',
+    ...base, name: 'tom', text: 'draw 50%', types: ['attack'], sets: ['sf62x'], format: 'Standard',
   });
-  assert.ok(text.includes("websearch_to_tsquery('english', $1)"));
-  assert.ok(text.includes('c.name ILIKE $2'));
-  assert.ok(text.includes('c.card_type = ANY($3::text[])'));
-  assert.ok(text.includes('lower(s.code) = ANY($4::text[])'));
-  assert.ok(text.includes('lower($5)'));
-  assert.deepEqual(values, ['draw 50%', '%draw 50\\%%', ['attack'], ['sf62x'], 'Standard', 50, 0]);
-  // user text never appears in the SQL itself
+  assert.ok(text.includes('c.name ILIKE $1'));
+  assert.ok(text.includes("websearch_to_tsquery('english', $2)"));
+  assert.ok(text.includes('c.rules_text ILIKE $3'));
+  assert.ok(text.includes('c.card_type = ANY($4::text[])'));
+  assert.ok(text.includes('lower(s.code) = ANY($5::text[])'));
+  assert.ok(text.includes('lower($6)'));
+  assert.deepEqual(values, ['%tom%', 'draw 50%', '%draw 50\\%%', ['attack'], ['sf62x'], 'Standard', 50, 0]);
   assert.ok(!text.includes('Standard') && !text.includes('draw 50'));
+});
+
+test('name only does not touch rules text, and text only does not touch name', () => {
+  const n = buildCardSearch({ ...base, name: 'tom' });
+  assert.ok(!n.text.includes('rules_text'));
+  const t = buildCardSearch({ ...base, text: 'draw' });
+  assert.ok(!t.text.includes('c.name ILIKE'));
 });
 
 test('keyword filters: rating and detail', () => {
@@ -152,13 +159,14 @@ test('escapeLike', () => {
 test('parseCardSearch: defaults and full example', () => {
   const d = parseCardSearch({});
   assert.deepEqual(d, {
-    q: undefined, types: [], sets: [], format: undefined, keywords: [], keywordsAny: [],
+    name: undefined, text: undefined, types: [], sets: [], format: undefined, keywords: [], keywordsAny: [],
     keywordsNot: [], stats: [], symbols: [], symbolsAny: [], symbolsNot: [], abilities: [],
     abilityMatch: 'all', page: 1, pageSize: 50, blockZones: [], attackZones: [],
   });
 
   const p = parseCardSearch({
-    q: ' tomura ',
+    name: ' tomura ',
+    text: ' draw ',
     type: ['Attack', 'foundation'],
     set: 'SF62X',
     format: 'Standard',
@@ -168,7 +176,8 @@ test('parseCardSearch: defaults and full example', () => {
     page: '2',
     page_size: '25',
   });
-  assert.equal(p.q, 'tomura');
+  assert.equal(p.name, 'tomura');
+  assert.equal(p.text, 'draw');
   assert.deepEqual(p.types, ['attack', 'foundation']);
   assert.deepEqual(p.sets, ['sf62x']);
   assert.equal(p.keywords.length, 2);
@@ -186,7 +195,8 @@ test('parseCardSearch: bad input is a FilterError', () => {
     { page: '0' },
     { page: 'abc' },
     { page_size: '9999' },
-    { q: 'x'.repeat(201) },
+    { name: 'x'.repeat(201) },
+    { text: 'x'.repeat(201) },
     { keyword: Array.from({ length: 21 }, () => 'throw') },
     { keyword_any: Array.from({ length: 51 }, () => 'throw') },
     { symbol: 'ea rth' },

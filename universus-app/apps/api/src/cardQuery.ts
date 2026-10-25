@@ -1,7 +1,10 @@
 import type { KeywordFilter, NumberOp, StatFilter, StatKey, SymbolFilter } from '@universus/shared';
 
 export interface CardSearchParams {
-  q?: string;
+  /** Substring of the card name. */
+  name?: string;
+  /** Words or phrase in the rules text only (not the name). */
+  text?: string;
   types: string[];
   sets: string[];
   format?: string;
@@ -68,10 +71,16 @@ export function buildCardSearch(p: CardSearchParams): BuiltQuery {
   };
   const where: string[] = [];
 
-  if (p.q) {
-    const ts = add(p.q);
-    const like = add(`%${escapeLike(p.q)}%`);
-    where.push(`(c.search @@ websearch_to_tsquery('english', ${ts}) OR c.name ILIKE ${like})`);
+  if (p.name) {
+    where.push(`c.name ILIKE ${add(`%${escapeLike(p.name)}%`)}`);
+  }
+  if (p.text) {
+    const ts = add(p.text);
+    const like = add(`%${escapeLike(p.text)}%`);
+    where.push(
+      `(to_tsvector('english', coalesce(c.rules_text, '')) @@ websearch_to_tsquery('english', ${ts})
+        OR c.rules_text ILIKE ${like})`,
+    );
   }
   if (p.types.length > 0) {
     where.push(`c.card_type = ANY(${add(p.types)}::text[])`);

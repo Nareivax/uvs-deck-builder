@@ -47,7 +47,8 @@ test('symbols: plain and attuned, any by default', () => {
 test('abilities, stats and the basic fields', () => {
   const p = buildSearchParams(
     withFilters({
-      q: ' tomura ',
+      name: ' tomura ',
+      text: ' draw 1 ',
       cardTypes: ['attack', 'foundation'],
       format: 'Standard',
       abilities: ['blitz', 'response'],

@@ -150,11 +150,20 @@ export default function App() {
 
       <form className="filters" onSubmit={onSubmit}>
         <label>
-          Search
+          Card name
           <input
-            value={filters.q}
-            onChange={(e) => change('q', e.target.value)}
-            placeholder="name or rules text"
+            value={filters.name}
+            onChange={(e) => change('name', e.target.value)}
+            placeholder="part of the name"
+          />
+        </label>
+
+        <label>
+          Rules text
+          <input
+            value={filters.text}
+            onChange={(e) => change('text', e.target.value)}
+            placeholder="words in the rules text"
           />
         </label>
 

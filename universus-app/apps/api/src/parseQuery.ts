@@ -31,8 +31,10 @@ function intParam(v: string | string[] | undefined, name: string, def: number, m
 
 /** Turns the query string of GET /cards into validated search parameters. */
 export function parseCardSearch(query: RawQuery): CardSearchParams {
-  const q = one(query.q);
-  if (q !== undefined && q.length > 200) throw new FilterError('q is too long (200 characters max)');
+  const name = one(query.name);
+  if (name !== undefined && name.length > 200) throw new FilterError('name is too long (200 characters max)');
+  const text = one(query.text);
+  if (text !== undefined && text.length > 200) throw new FilterError('text is too long (200 characters max)');
 
   const nonBlank = (v: string | string[] | undefined) => many(v).filter((s) => s.trim() !== '');
   const keywordParams = nonBlank(query.keyword);
@@ -59,7 +61,8 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
   if (match !== 'all' && match !== 'any') throw new FilterError('ability_match must be "all" or "any"');
 
   return {
-    q,
+    name,
+    text,
     types: many(query.type).map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 20),
     sets: many(query.set).map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 20),
     format: one(query.format),
