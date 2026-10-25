@@ -152,3 +152,39 @@ LIMIT ${limit} OFFSET ${offset}`;
 
   return { text, values };
 }
+
+/**
+ * Name suggestions for the search box. A name matches when it contains every typed word
+ * (any order). Names starting with the typed text come first, then names containing it.
+ * Cards are per printing, so one row is kept per distinct name, preferring a printing
+ * that has an image and then the newest set.
+ */
+export function buildNameSuggest(name: string, limit: number): BuiltQuery {
+  const values: unknown[] = [];
+  const add = (v: unknown): string => {
+    values.push(v);
+    return `$${values.length}`;
+  };
+  const typed = name.trim();
+  const words = typed.split(/\s+/).filter(Boolean).slice(0, 6);
+  const conds = words.map((w) => `c.name ILIKE ${add(`%${escapeLike(w)}%`)}`);
+  const prefix = add(`${escapeLike(typed)}%`);
+  const contains = add(`%${escapeLike(typed)}%`);
+
+  const text = `SELECT id, name, "imageMiniUrl"
+FROM (
+  SELECT DISTINCT ON (lower(c.name))
+         c.id, c.name, c.image_mini_url AS "imageMiniUrl",
+         CASE WHEN c.name ILIKE ${prefix} THEN 0
+              WHEN c.name ILIKE ${contains} THEN 1
+              ELSE 2 END AS rank
+  FROM cards c
+  JOIN sets s ON s.id = c.set_id
+  WHERE ${conds.join(' AND ')}
+  ORDER BY lower(c.name), (c.image_mini_url IS NULL), s.release_date DESC NULLS LAST, c.id
+) t
+ORDER BY rank, name
+LIMIT ${add(limit)}`;
+
+  return { text, values };
+}

@@ -4,6 +4,7 @@ import type { CardSearchResponse, MetaResponse } from '@universus/shared';
 import { api } from './api.ts';
 import { EMPTY_FILTERS, OPS, buildSearchParams } from './searchParams.ts';
 import type { Filters, KeywordChoice, OpName } from './searchParams.ts';
+import NameSearch from './NameSearch.tsx';
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : 'Something went wrong';
@@ -113,6 +114,12 @@ export default function App() {
     void search(filters, 1);
   }
 
+  function pickName(name: string) {
+    const next = { ...filters, name };
+    setFilters(next);
+    void search(next, 1);
+  }
+
   function reset() {
     setFilters(EMPTY_FILTERS);
     void search(EMPTY_FILTERS, 1);
@@ -151,11 +158,7 @@ export default function App() {
       <form className="filters" onSubmit={onSubmit}>
         <label>
           Card name
-          <input
-            value={filters.name}
-            onChange={(e) => change('name', e.target.value)}
-            placeholder="part of the name"
-          />
+          <NameSearch value={filters.name} onChange={(v) => change('name', v)} onPick={pickName} />
         </label>
 
         <label>

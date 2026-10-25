@@ -34,6 +34,7 @@ All read-only for now.
 | `GET /meta` | keywords, formats, sets, ability types, card types (for filter menus) |
 | `GET /cards` | search (below) -> `{ items, total, page, pageSize }` |
 | `GET /cards/:id` | one card with keywords, symbols and formats |
+| `GET /cards/suggest` | `?name=tomu&limit=10` -> `[{ id, name, imageMiniUrl }]`, one entry per distinct name containing every typed word |
 
 `GET /cards` parameters (all optional, combined with AND):
 

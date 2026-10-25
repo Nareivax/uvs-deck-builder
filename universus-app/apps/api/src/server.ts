@@ -1,17 +1,18 @@
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
-import { ABILITY_TYPES, FilterError, STATS, ZONES} from '@universus/shared';
+import { ABILITY_TYPES, FilterError, STATS, ZONES } from '@universus/shared';
 import type {
   CardDetail,
   CardListItem,
   CardSearchResponse,
   KeywordInfo,
   MetaResponse,
+  CardSuggestion,
 } from '@universus/shared';
-import { CARD_COLUMNS, STAT_COLUMNS, buildCardSearch } from './cardQuery.ts';
+import { CARD_COLUMNS, STAT_COLUMNS, buildCardSearch, buildNameSuggest } from './cardQuery.ts';
 import { config } from './config.ts';
 import { pool } from './db.ts';
-import { parseCardSearch } from './parseQuery.ts';
+import { parseCardSearch, parseSuggest } from './parseQuery.ts';
 import type { RawQuery } from './parseQuery.ts';
 
 function statusOf(err: unknown): number {
@@ -85,6 +86,14 @@ export async function buildServer() {
     const total = rows.length > 0 ? Number(rows[0].total) : 0;
     const items = rows.map(({ total: _total, ...card }) => card as CardListItem);
     return { items, total, page: params.page, pageSize: params.pageSize };
+  });
+
+  app.get<{ Querystring: RawQuery }>('/cards/suggest', async (req): Promise<CardSuggestion[]> => {
+    const { name, limit } = parseSuggest(req.query);
+    if (name === '') return [];
+    const { text, values } = buildNameSuggest(name, limit);
+    const { rows } = await pool.query(text, values);
+    return rows as CardSuggestion[];
   });
 
   app.get<{ Params: { id: string } }>('/cards/:id', async (req, reply) => {

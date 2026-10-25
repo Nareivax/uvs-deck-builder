@@ -80,3 +80,9 @@ export interface MetaResponse {
   symbols: string[];
   zones: string[];
 }
+
+export interface CardSuggestion {
+  id: number;
+  name: string;
+  imageMiniUrl: string | null;
+}

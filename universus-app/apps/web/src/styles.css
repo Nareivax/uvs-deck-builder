@@ -47,3 +47,14 @@ body { margin: 0; }
 .tri[data-state='include'] .tri-box { background: #1b7f3b; border-color: #1b7f3b; color: #fff; }
 .tri[data-state='exclude'] .tri-box { background: #b00020; border-color: #b00020; color: #fff; }
 .tri[data-state='exclude'] { text-decoration: line-through; color: #b00020; }
+
+.suggest { position: relative; }
+.suggest input { width: 100%; box-sizing: border-box; }
+.suggest-list { position: absolute; z-index: 10; left: 0; right: 0; top: 100%; margin: 2px 0 0; padding: 0;
+  list-style: none; background: #fff; border: 1px solid #999; border-radius: 4px;
+  max-height: 16rem; overflow-y: auto; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+.suggest-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem;
+  min-height: 2.2rem; font-size: 0.95rem; cursor: pointer; }
+.suggest-list li.active { background: #e6edff; }
+.suggest-list img, .suggest-list .no-img { width: 24px; height: 24px; object-fit: cover; border-radius: 3px; flex: none; }
+.suggest-list .no-img { background: #ddd; }

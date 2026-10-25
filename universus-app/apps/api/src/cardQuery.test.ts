@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCardSearch, escapeLike } from './cardQuery.ts';
+import { buildCardSearch, escapeLike, buildNameSuggest } from './cardQuery.ts';
 import type { CardSearchParams } from './cardQuery.ts';
 import { parseCardSearch } from './parseQuery.ts';
 import { FilterError } from '@universus/shared';
@@ -230,4 +230,12 @@ test('not_symbol: NOT EXISTS, always ANDed', () => {
   });
   assert.equal((text.match(/NOT EXISTS \(SELECT 1\s+FROM card_symbols cs/g) ?? []).length, 1);
   assert.deepEqual(values, ['earth', false, 'fire', true, 50, 0]);
+});
+
+test('name suggestions: every word must appear, parameters only', () => {
+  const { text, values } = buildNameSuggest(' tomura shig ', 8);
+  assert.ok(text.includes('c.name ILIKE $1 AND c.name ILIKE $2'));
+  assert.ok(text.includes('DISTINCT ON (lower(c.name))'));
+  assert.deepEqual(values, ['%tomura%', '%shig%', 'tomura shig%', '%tomura shig%', 8]);
+  assert.ok(!text.includes('tomura'));
 });

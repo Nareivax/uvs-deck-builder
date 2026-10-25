@@ -81,3 +81,10 @@ export function parseCardSearch(query: RawQuery): CardSearchParams {
     attackZones: parseZones(many(query.attack_zone), 'attack_zone'),
   };
 }
+
+/** Query string of GET /cards/suggest. */
+export function parseSuggest(query: RawQuery): { name: string; limit: number } {
+  const name = one(query.name) ?? '';
+  if (name.length > 200) throw new FilterError('name is too long (200 characters max)');
+  return { name, limit: intParam(query.limit, 'limit', 10, 1, 20) };
+}

@@ -1,4 +1,4 @@
-import type { CardDetail, CardSearchResponse, MetaResponse } from '@universus/shared';
+import type { CardDetail, CardSearchResponse, MetaResponse, CardSuggestion } from '@universus/shared';
 
 // '/api' is proxied to the API server in development (see vite.config.ts).
 const BASE: string = import.meta.env.VITE_API_URL ?? '/api';
@@ -23,4 +23,5 @@ export const api = {
   meta: () => get<MetaResponse>('/meta'),
   searchCards: (params: URLSearchParams) => get<CardSearchResponse>('/cards', params),
   card: (id: number) => get<CardDetail>(`/cards/${id}`),
+  suggest: (name: string) => get<CardSuggestion[]>('/cards/suggest', new URLSearchParams({ name, limit: '10' })),
 };
