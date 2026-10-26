@@ -1,5 +1,7 @@
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
+import fastifyStatic from '@fastify/static';
+import { imageUrl } from './images.ts';
 import { ABILITY_TYPES, FilterError, STATS, ZONES } from '@universus/shared';
 import type {
   CardDetail,
@@ -24,6 +26,15 @@ export async function buildServer() {
   const app = Fastify({ logger: true });
 
   await app.register(cors, { origin: config.corsOrigins });
+  if (config.imagesDir) {
+    await app.register(fastifyStatic, {
+      root: config.imagesDir,
+      prefix: '/images/',
+      maxAge: '30d',
+      immutable: true,
+    });
+  }
+
   app.addHook('onClose', async () => {
     await pool.end();
   });
@@ -84,7 +95,8 @@ export async function buildServer() {
     const { text, values } = buildCardSearch(params);
     const { rows } = await pool.query(text, values);
     const total = rows.length > 0 ? Number(rows[0].total) : 0;
-    const items = rows.map(({ total: _total, ...card }) => card as CardListItem);
+    const items = rows.map(({ total: _total, imageKey, ...card }) =>
+      ({ ...card, imageMiniUrl: imageUrl(imageKey) }) as CardListItem);
     return { items, total, page: params.page, pageSize: params.pageSize };
   });
 
@@ -93,7 +105,9 @@ export async function buildServer() {
     if (name === '') return [];
     const { text, values } = buildNameSuggest(name, limit);
     const { rows } = await pool.query(text, values);
-    return rows as CardSuggestion[];
+    return rows.map((r: { id: number; name: string; imageKey: string | null }) => ({
+      id: r.id, name: r.name, imageMiniUrl: imageUrl(r.imageKey),
+    })) as CardSuggestion[];
   });
 
   app.get<{ Params: { id: string } }>('/cards/:id', async (req, reply) => {
@@ -128,8 +142,10 @@ export async function buildServer() {
     ]);
     if (card.rows.length === 0) return reply.status(404).send({ error: 'Card not found' });
 
+    const { imageKey, ...cardRow } = card.rows[0];
     const detail: CardDetail = {
-      ...card.rows[0],
+      ...cardRow,
+      imageMiniUrl: imageUrl(imageKey),
       keywords: keywords.rows,
       symbols: symbols.rows,
       formats: formats.rows.map((r: { name: string }) => r.name),

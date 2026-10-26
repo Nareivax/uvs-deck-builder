@@ -53,7 +53,7 @@ CARD_COLUMNS = [
     "source_id", "set_id", "number", "name", "card_type", "rarity", "rules_text", "ability_types",
     "difficulty", "control", "block_modifier", "block_zone", "attack_zone",
     "attack_speed", "attack_damage", "hand_size", "vitality",
-    "image_mini_url", "source_url",
+    "image_mini_url", "image_key", "source_url",
 ]
 CASTS = {"ability_types": "::text[]"}
 
@@ -214,6 +214,7 @@ def import_card(cur, raw, ctx, stats):
         "hand_size": raw.get("hand_size"),
         "vitality": raw.get("vitality"),
         "image_mini_url": raw.get("image_mini"),
+        "image_key": f"{raw['ext_code']}/{raw['number_str']}" if raw.get("image_mini") else None,
         "source_url": raw.get("url"),
     }
     cols = ", ".join(CARD_COLUMNS)

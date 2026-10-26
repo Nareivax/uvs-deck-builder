@@ -38,7 +38,7 @@ export const CARD_COLUMNS = `
   c.ability_types AS "abilityTypes", c.number, s.code AS "setCode", s.name AS "setName",
   c.difficulty, c.control, c.block_modifier AS "blockModifier", c.block_zone AS "blockZone",
   c.attack_zone AS "attackZone", c.attack_speed AS "attackSpeed", c.attack_damage AS "attackDamage",
-  c.hand_size AS "handSize", c.vitality, c.image_mini_url AS "imageMiniUrl"`;
+  c.hand_size AS "handSize", c.vitality, c.image_key AS "imageKey"`;
 
 /** Which database column each filterable stat reads. Only these are ever put into the SQL. */
 export const STAT_COLUMNS: Record<StatKey, string> = {
@@ -171,17 +171,17 @@ export function buildNameSuggest(name: string, limit: number): BuiltQuery {
   const prefix = add(`${escapeLike(typed)}%`);
   const contains = add(`%${escapeLike(typed)}%`);
 
-  const text = `SELECT id, name, "imageMiniUrl"
+  const text = `SELECT id, name, "imageKey"
 FROM (
   SELECT DISTINCT ON (lower(c.name))
-         c.id, c.name, c.image_mini_url AS "imageMiniUrl",
+         c.id, c.name, c.image_key AS "imageKey",
          CASE WHEN c.name ILIKE ${prefix} THEN 0
               WHEN c.name ILIKE ${contains} THEN 1
               ELSE 2 END AS rank
   FROM cards c
   JOIN sets s ON s.id = c.set_id
   WHERE ${conds.join(' AND ')}
-  ORDER BY lower(c.name), (c.image_mini_url IS NULL), s.release_date DESC NULLS LAST, c.id
+  ORDER BY lower(c.name), (c.image_key IS NULL), s.release_date DESC NULLS LAST, c.id
 ) t
 ORDER BY rank, name
 LIMIT ${add(limit)}`;
